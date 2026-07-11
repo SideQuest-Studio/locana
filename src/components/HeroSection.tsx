@@ -85,7 +85,6 @@ export default function HeroSection() {
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-5 pt-28">
         <span className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 text-white font-bold text-[11px] uppercase tracking-wider px-4 py-2 rounded-full mb-7">
-          <Sparkles className="h-3.5 w-3.5 text-[#F4A93E]" />
           Sustainable Philippines Escapes
         </span>
 
