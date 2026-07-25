@@ -3,7 +3,7 @@
 import { CheckCircle2, Compass, MapPin, Search, Sparkles } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { ATTRACTIONS } from "@/data/attractions";
+import { ATTRACTIONS } from "@/src/data/attractions";
 
 export default function Hero() {
 

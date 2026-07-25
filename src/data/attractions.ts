@@ -1,4 +1,4 @@
-import { Attraction } from "@/types";
+import { Attraction } from "@/src/types";
 
 export const ATTRACTIONS: Attraction[] = [
   {

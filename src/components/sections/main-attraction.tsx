@@ -3,8 +3,8 @@
 import { ChevronRight, MapPin, Star } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Attraction } from "@/types";
-import { ATTRACTIONS } from "@/data/attractions";
+import { Attraction } from "@/src/types";
+import { ATTRACTIONS } from "@/src/data/attractions";
 
 interface MainAttractionProps {
   openBookingModal: (attraction: Attraction) => void;
@@ -92,7 +92,7 @@ export default function MainAttraction({ openBookingModal }: MainAttractionProps
 
               {/* Highlights Tags */}
               <div className="flex flex-wrap gap-1.5 mt-4">
-                {attraction.tags.slice(0, 2).map((t, idx) => (
+                {attraction.tags.slice(0, 2).map((t: string, idx: number) => (
                   <span
                     key={idx}
                     className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-slate-50 text-slate-500 border border-slate-200/50"

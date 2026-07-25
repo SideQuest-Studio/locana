@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { Compass, ChevronRight, MapPin } from "lucide-react";
-import { Attraction } from "@/types";
-import { ATTRACTIONS } from "@/data/attractions";
+import { Attraction } from "@/src/types";
+import { ATTRACTIONS } from "@/src/data/attractions";
 
 interface QuizProps {
   openBookingModal: (attraction: Attraction) => void;
