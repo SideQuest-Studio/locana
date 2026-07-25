@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
+  --font-sans: "Geologica", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Geologica", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 :root {

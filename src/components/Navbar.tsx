@@ -1,19 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Menu, X, Compass } from "lucide-react";
+import { Menu, X, Compass, Heart, User } from "lucide-react";
 import AnimatedButton from "@/src/components/ui/AnimatedButton";
+import { useWishlist } from "@/src/context/WishlistContext";
 
 const LINKS = [
-  { href: "#destinations", label: "Destinations" },
-  { href: "#tours", label: "Popular Tours" },
-  { href: "#plan-your-trip", label: "Plan a Trip" },
-  { href: "#reviews", label: "Reviews" },
+  { href: "#top", label: "Home" },
+  { href: "#deals", label: "Deals" },
+  { href: "#guides", label: "Travel Guides" },
+  { href: "#partner", label: "Become a Partner" },
 ];
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const { wishlist } = useWishlist();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -31,7 +33,7 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-400 mx-auto px-5 sm:px-8 flex items-center justify-between">
-        <a href="#" className="flex items-center gap-2.5">
+        <a href="#top" className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1E88E5] to-[#0E7C7B] flex items-center justify-center shadow-[0_6px_16px_-6px_rgba(30,136,229,0.6)]">
             <Compass className="h-5 w-5 text-white" />
           </div>
@@ -59,10 +61,28 @@ export default function Navbar() {
           ))}
         </div>
 
-        <div className="hidden lg:block">
-          <AnimatedButton href="#plan-your-trip" size="md" icon={false}>
-            Start Exploring
-          </AnimatedButton>
+        <div className="hidden lg:flex items-center gap-5">
+          <button
+            aria-label="Wishlist"
+            className={`relative p-1 transition-colors ${scrolled ? "text-[#1F2A2E] hover:text-[#1E88E5]" : "text-white/90 hover:text-white"}`}
+          >
+            <Heart className="h-5 w-5" />
+            {wishlist.size > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-[#1E88E5] text-white text-[10px] font-bold flex items-center justify-center">
+                {wishlist.size}
+              </span>
+            )}
+          </button>
+          <button
+            className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${
+              scrolled
+                ? "text-[#1F2A2E] hover:text-[#1E88E5]"
+                : "text-white/90 hover:text-white"
+            }`}
+          >
+            <User className="h-4 w-4" />
+            Login / Register
+          </button>
         </div>
 
         <button
@@ -86,9 +106,17 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
+          <div className="flex items-center justify-between mt-4">
+            <button className="flex items-center gap-2 text-sm font-semibold text-[#1F2A2E]">
+              <User className="h-4 w-4" /> Login / Register
+            </button>
+            <button className="flex items-center gap-1.5 text-sm font-semibold text-[#1F2A2E]">
+              <Heart className="h-4 w-4" /> {wishlist.size > 0 ? wishlist.size : ""}
+            </button>
+          </div>
           <div className="mt-4">
-            <AnimatedButton href="#plan-your-trip" size="md" icon={false} className="w-full">
-              Start Exploring
+            <AnimatedButton href="#partner" size="md" icon={false} className="w-full">
+              Become a Partner
             </AnimatedButton>
           </div>
         </div>
