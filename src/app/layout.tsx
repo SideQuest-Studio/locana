@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Locana - Local Eco-Attractions & Nature Bookings Philippines",
-  description: "Explore, Discover, Recover and breathe with nature near to you. Discover hidden gems, support local guides, and book eco-certified nature experiences in the Philippines.",
+  title: "Locana — Explore, Discover, Recover",
+  description:
+    "Book eco-certified nature experiences across the Philippines — El Nido, Batanes, Siargao, and Cebu — with certified local guides and community-first pricing.",
 };
 
 export default function RootLayout({
@@ -13,7 +14,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased scroll-smooth">
-      <body className="min-h-full flex flex-col bg-[#fcfdfd] text-[#1a2822] antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-[#FFF8EE] text-[#1F2A2E] antialiased font-sans">
         {children}
       </body>
     </html>

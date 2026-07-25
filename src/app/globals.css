@@ -1,50 +1,84 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fbfdfc;
-  --foreground: #1e2925;
-  --primary: #0f766e;
-  --primary-hover: #115e59;
-  --border: #e2e8f0;
+@theme inline {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
 }
 
-html {
-  scroll-behavior: smooth;
+:root {
+  --cream: #FFF8EE;
+  --sand: #FDECD2;
+  --ocean: #1E88E5;
+  --ocean-dark: #1565C0;
+  --teal: #0E7C7B;
+  --teal-dark: #0B5E5D;
+  --gold: #F4A93E;
+  --ink: #1F2A2E;
+  --ink-soft: #64716F;
+  --line: #F0DFC2;
+
+  --background: var(--cream);
+  --foreground: var(--ink);
 }
+
+html { scroll-behavior: smooth; }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   overflow-x: hidden;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 8px; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Semi-professional panel shadows */
-.card-shadow {
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+/* Scroll reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .8s cubic-bezier(.16,.8,.24,1), transform .8s cubic-bezier(.16,.8,.24,1);
 }
+.reveal.in-view { opacity: 1; transform: translateY(0); }
+.reveal-delay-1.in-view { transition-delay: .08s; }
+.reveal-delay-2.in-view { transition-delay: .16s; }
+.reveal-delay-3.in-view { transition-delay: .24s; }
+.reveal-delay-4.in-view { transition-delay: .32s; }
 
-.card-hover-shadow:hover {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.03);
+/* Gentle float for badges / floating cards */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0) rotate(var(--float-rot, 0deg)); }
+  50% { transform: translateY(-12px) rotate(var(--float-rot, 0deg)); }
 }
+.float { animation: floatY 5s ease-in-out infinite; }
+.float-slow { animation: floatY 7s ease-in-out infinite; }
 
-.modal-shadow {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+@keyframes kenburns {
+  from { transform: scale(1.12); }
+  to { transform: scale(1); }
 }
+.kenburns { animation: kenburns 20s cubic-bezier(.16,.8,.24,1) forwards; }
 
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-slow { animation: spinSlow 18s linear infinite; }
 
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(.85); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in { animation: popIn .45s cubic-bezier(.16,.8,.24,1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}
