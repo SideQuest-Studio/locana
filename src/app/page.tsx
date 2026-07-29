@@ -1,26 +1,41 @@
-import { BookingProvider } from "@/src/context/BookingContext";
+"use client";
+
+import React, { useState } from "react";
+import { WishlistProvider } from "@/src/context/WishlistContext";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
+import CategorySection from "@/src/components/CategorySection";
 import FeaturedDestinations from "@/src/components/FeaturedDestinations";
-import PopularTours from "@/src/components/PopularTours";
-import BookingSection from "@/src/components/BookingSection";
-import ExperienceSection from "@/src/components/ExperienceSection";
-import Testimonials from "@/src/components/Testimonials";
-import CTASection from "@/src/components/CTASection";
+import DealsSection from "@/src/components/DealsSection";
+import TravelGuides from "@/src/components/TravelGuides";
+import PartnerCTA from "@/src/components/PartnerCTA";
 import Footer from "@/src/components/Footer";
+import type { CategoryKey } from "@/src/lib/categories";
 
 export default function Home() {
+  const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
+
+  const handleSelectCategory = (key: CategoryKey) => {
+    setActiveCategory(prev => (prev === key ? null : key));
+    if (key !== "deals") {
+      document
+        .getElementById("destinations")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      document.getElementById("deals")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
-    <BookingProvider>
+    <WishlistProvider>
       <Navbar />
       <HeroSection />
-      <FeaturedDestinations />
-      <PopularTours />
-      <BookingSection />
-      <ExperienceSection />
-      <Testimonials />
-      <CTASection />
+      <CategorySection onSelectCategory={handleSelectCategory} />
+      <FeaturedDestinations filterCategory={activeCategory} />
+      <DealsSection />
+      <TravelGuides />
+      <PartnerCTA />
       <Footer />
-    </BookingProvider>
+    </WishlistProvider>
   );
 }

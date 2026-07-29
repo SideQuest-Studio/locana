@@ -4,6 +4,8 @@ export interface Attraction {
   location: string;
   category: "beaches" | "mountains" | "waterfalls" | "forests";
   categoryLabel: string;
+  /** Which "Explore by Category" tile this destination belongs under. */
+  exploreCategory: "stays" | "destinations" | "experiences";
   rating: number;
   reviewsCount: number;
   price: number;
@@ -14,6 +16,9 @@ export interface Attraction {
   highlights: string[];
   ecoContribution: string;
   badge?: string;
+  /** Optional discount used to feature a destination in Top Deals. */
+  dealDiscountPercent?: number;
+  dealUnit?: "night" | "person";
 }
 
 export const ATTRACTIONS: Attraction[] = [
@@ -23,6 +28,7 @@ export const ATTRACTIONS: Attraction[] = [
     location: "El Nido, Palawan",
     category: "beaches",
     categoryLabel: "Beaches & Lagoons",
+    exploreCategory: "destinations",
     rating: 4.9,
     reviewsCount: 4820,
     price: 1500,
@@ -38,6 +44,8 @@ export const ATTRACTIONS: Attraction[] = [
     ],
     ecoContribution: "15% of fee supports the Palawan Marine Biodiversity Fund.",
     badge: "Bestseller",
+    dealDiscountPercent: 20,
+    dealUnit: "night",
   },
   {
     id: "batanes-hills",
@@ -45,6 +53,7 @@ export const ATTRACTIONS: Attraction[] = [
     location: "Basco, Batanes",
     category: "mountains",
     categoryLabel: "Mountains & Hills",
+    exploreCategory: "stays",
     rating: 4.95,
     reviewsCount: 1240,
     price: 2200,
@@ -60,6 +69,8 @@ export const ATTRACTIONS: Attraction[] = [
     ],
     ecoContribution: "15% of fee funds the Batanes Ivatan Cultural Heritage Foundation.",
     badge: "Rare Find",
+    dealDiscountPercent: 15,
+    dealUnit: "night",
   },
   {
     id: "siargao-canopy",
@@ -67,6 +78,7 @@ export const ATTRACTIONS: Attraction[] = [
     location: "General Luna, Siargao",
     category: "forests",
     categoryLabel: "Rivers & Canopy",
+    exploreCategory: "experiences",
     rating: 4.88,
     reviewsCount: 2850,
     price: 1100,
@@ -82,6 +94,8 @@ export const ATTRACTIONS: Attraction[] = [
     ],
     ecoContribution: "15% of fee goes to the Siargao Mangrove Planting Association.",
     badge: "Family Friendly",
+    dealDiscountPercent: 10,
+    dealUnit: "person",
   },
   {
     id: "kawasan-falls",
@@ -89,6 +103,7 @@ export const ATTRACTIONS: Attraction[] = [
     location: "Badian, Cebu",
     category: "waterfalls",
     categoryLabel: "Waterfalls & Canyons",
+    exploreCategory: "experiences",
     rating: 4.92,
     reviewsCount: 5120,
     price: 1800,
@@ -104,6 +119,8 @@ export const ATTRACTIONS: Attraction[] = [
     ],
     ecoContribution: "15% of fee goes to the Badian River Watershed Conservation Council.",
     badge: "Adventure Pick",
+    dealDiscountPercent: 25,
+    dealUnit: "person",
   },
 ];
 

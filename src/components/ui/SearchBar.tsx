@@ -1,23 +1,24 @@
 "use client";
 
 import React, { useState } from "react";
-import { MapPin, Compass, Calendar, Users, Search, CheckCircle2 } from "lucide-react";
+import { MapPin, Calendar, Users, Search, CheckCircle2 } from "lucide-react";
 import { ATTRACTIONS } from "@/src/lib/attractions";
 
 export default function SearchBar() {
-  const [location, setLocation] = useState("");
-  const [category, setCategory] = useState("all");
-  const [date, setDate] = useState("");
-  const [guests, setGuests] = useState("2");
+  const [whereTo, setWhereTo] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState("");
   const [resultsMsg, setResultsMsg] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const count = ATTRACTIONS.filter(a => {
-      const matchLoc = !location || a.location.toLowerCase().includes(location.toLowerCase());
-      const matchCat = category === "all" || a.category === category;
-      return matchLoc && matchCat;
-    }).length;
+    const count = ATTRACTIONS.filter(
+      a =>
+        !whereTo ||
+        a.name.toLowerCase().includes(whereTo.toLowerCase()) ||
+        a.location.toLowerCase().includes(whereTo.toLowerCase()),
+    ).length;
     setResultsMsg(
       `${count} adventure${count === 1 ? "" : "s"} found — scroll down to explore!`,
     );
@@ -34,35 +35,30 @@ export default function SearchBar() {
           <MapPin className="h-4 w-4 text-[#1E88E5] shrink-0" />
           <div className="flex flex-col text-left w-full">
             <label className="text-[10px] font-bold uppercase tracking-wider text-[#64716F]">
-              Where to
+              Where to?
             </label>
             <input
               type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="Palawan, Batanes, Cebu..."
-              className="text-sm font-semibold bg-transparent focus:outline-none placeholder-[#A8AD9C]"
+              value={whereTo}
+              onChange={e => setWhereTo(e.target.value)}
+              placeholder="Search destinations, places..."
+              className="text-sm font-semibold bg-transparent focus:outline-none placeholder-[#A8AD9C] w-full"
             />
           </div>
         </div>
 
         <div className="flex-1 flex items-center gap-3 px-4 sm:px-5 py-3">
-          <Compass className="h-4 w-4 text-[#0E7C7B] shrink-0" />
+          <Calendar className="h-4 w-4 text-[#0E7C7B] shrink-0" />
           <div className="flex flex-col text-left w-full">
             <label className="text-[10px] font-bold uppercase tracking-wider text-[#64716F]">
-              Experience
+              Check-in
             </label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="text-sm font-semibold bg-transparent focus:outline-none"
-            >
-              <option value="all">Any landscape</option>
-              <option value="beaches">Beaches & Lagoons</option>
-              <option value="mountains">Mountains & Hills</option>
-              <option value="waterfalls">Waterfalls & Canyons</option>
-              <option value="forests">Rivers & Canopy</option>
-            </select>
+            <input
+              type="date"
+              value={checkIn}
+              onChange={e => setCheckIn(e.target.value)}
+              className="text-sm font-semibold bg-transparent focus:outline-none w-full"
+            />
           </div>
         </div>
 
@@ -70,13 +66,13 @@ export default function SearchBar() {
           <Calendar className="h-4 w-4 text-[#F4A93E] shrink-0" />
           <div className="flex flex-col text-left w-full">
             <label className="text-[10px] font-bold uppercase tracking-wider text-[#64716F]">
-              When
+              Check-out
             </label>
             <input
               type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              className="text-sm font-semibold bg-transparent focus:outline-none"
+              value={checkOut}
+              onChange={e => setCheckOut(e.target.value)}
+              className="text-sm font-semibold bg-transparent focus:outline-none w-full"
             />
           </div>
         </div>
@@ -85,25 +81,23 @@ export default function SearchBar() {
           <Users className="h-4 w-4 text-[#1E88E5] shrink-0" />
           <div className="flex flex-col text-left w-full">
             <label className="text-[10px] font-bold uppercase tracking-wider text-[#64716F]">
-              Travelers
+              Guests
             </label>
-            <select
+            <input
+              type="number"
+              min={1}
               value={guests}
               onChange={e => setGuests(e.target.value)}
-              className="text-sm font-semibold bg-transparent focus:outline-none"
-            >
-              <option value="1">1 Adult</option>
-              <option value="2">2 Adults</option>
-              <option value="3">2 Adults, 1 Child</option>
-              <option value="4">Family (4+)</option>
-            </select>
+              placeholder="Add guests"
+              className="text-sm font-semibold bg-transparent focus:outline-none placeholder-[#A8AD9C] w-full"
+            />
           </div>
         </div>
 
         <div className="p-1.5 sm:pl-3">
           <button
             type="submit"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#1E88E5] hover:bg-[#E85A3B] text-white rounded-full px-6 py-3.5 text-sm font-bold transition-all hover:-translate-y-0.5 active:scale-95 shadow-[0_10px_24px_-8px_rgba(255,107,74,0.55)]"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-[#1F2A2E] hover:bg-[#0E241D] text-white rounded-full px-6 py-3.5 text-sm font-bold transition-all hover:-translate-y-0.5 active:scale-95"
           >
             <Search className="h-4 w-4" />
             Search

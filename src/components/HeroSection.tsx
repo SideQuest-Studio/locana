@@ -2,7 +2,6 @@
 
 import React from "react";
 import Image from "next/image";
-import { Sparkles } from "lucide-react";
 import SearchBar from "@/src/components/ui/SearchBar";
 import { STATS, ATTRACTIONS } from "@/src/lib/attractions";
 import { useCountUp } from "@/src/hooks/useCountUp";
@@ -40,7 +39,7 @@ export default function HeroSection() {
   const preview2 = ATTRACTIONS[2];
 
   return (
-    <section className="relative min-h-[100svh] flex flex-col overflow-visible">
+    <section id="top" className="relative min-h-[100svh] flex flex-col overflow-visible">
       <div className="absolute inset-0 z-0">
         <Image
           src="/hero.jpg"
@@ -85,21 +84,20 @@ export default function HeroSection() {
 
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center px-5 pt-28">
         <span className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 text-white font-bold text-[11px] uppercase tracking-wider px-4 py-2 rounded-full mb-7">
-          Sustainable Philippines Escapes
+          Discover. Book. Experience.
         </span>
 
         <h1
-          className="text-white text-[42px] sm:text-[64px] md:text-[76px] leading-[1.02] font-semibold max-w-4xl"
+          className="text-white text-[38px] sm:text-[56px] md:text-[68px] leading-[1.05] font-semibold max-w-4xl"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Your next adventure
+          Discover the Philippines
           <br />
-          starts <span className="text-[#F4A93E]">near you</span>
+          Book. Experience. <span className="text-[#F4A93E]">Love Locally.</span>
         </h1>
 
         <p className="text-white/85 text-base sm:text-lg max-w-xl mt-6 leading-relaxed">
-          Discover hidden lagoons, wind-swept hills, and jungle rivers — booked directly with
-          the local guides who protect them.
+          Find and book authentic destinations, stays, and experiences across the Philippines.
         </p>
 
         <div className="flex flex-wrap justify-center gap-3 mt-10">
