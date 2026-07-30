@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Locana — Explore, Discover, Recover",
+  title: "DIP — Explore, Discover, Recover",
   description:
     "Book eco-certified nature experiences across the Philippines — El Nido, Batanes, Siargao, and Cebu — with certified local guides and community-first pricing.",
 };

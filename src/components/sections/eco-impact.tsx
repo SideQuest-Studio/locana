@@ -16,7 +16,7 @@ export default function EcoImpact() {
               Structured Local Conservation Levy
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mb-6">
-              Locana channels tourism revenue straight into community restoration. Every ticket price incorporates a transparent 15% regional eco-development levy that goes directly to regional guides, watershed protection, and beach restoration councils.
+              DIP channels tourism revenue straight into community restoration. Every ticket price incorporates a transparent 15% regional eco-development levy that goes directly to regional guides, watershed protection, and beach restoration councils.
             </p>
 
             <div className="space-y-4">
@@ -81,7 +81,7 @@ export default function EcoImpact() {
             </div>
 
             <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-500 italic">
-              "Through Locana's scheduling system, we capped daily visits to Twin Lagoons, resulting in a 40% recovery in coral density in just one season."
+              "Through DIP's scheduling system, we capped daily visits to Twin Lagoons, resulting in a 40% recovery in coral density in just one season."
               <span className="block font-bold text-[10px] text-slate-700 uppercase tracking-wider mt-2 not-italic">
                 Palawan Marine Biodiversity Committee
               </span>

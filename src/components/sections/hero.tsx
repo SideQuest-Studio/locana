@@ -48,7 +48,7 @@ export default function Hero() {
             </h1>
 
             <p className="text-sm sm:text-base text-slate-500 max-w-xl leading-relaxed mb-8">
-              Locana connects conscious travelers with certified indigenous tour guides in low-impact, biological preservation areas. Avoid crowds, support local stewards, and breathe in protected spaces.
+              DIP connects conscious travelers with certified indigenous tour guides in low-impact, biological preservation areas. Avoid crowds, support local stewards, and breathe in protected spaces.
             </p>
 
             {/* Minimal Search widget */}
