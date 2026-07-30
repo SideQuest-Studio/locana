@@ -822,156 +822,736 @@ For Supabase-managed projects this is handled automatically — but document the
 
 ### 6.1 Principles
 
-1. **Mobile-first PWA** — design for 375px width first.
-2. **Server Components by default** — Client Components only for interactivity.
-3. **No mock data in production paths** — remove `src/lib/attractions.ts` mock pattern; use Supabase.
-4. **Shared design system** — Tailwind tokens in `globals.css`; UI primitives in `src/components/ui/`.
-5. **Accessibility** — WCAG 2.1 AA target; semantic HTML, keyboard nav, focus states.
-6. **Performance budget** — LCP < 2.5s on 4G; property images via `next/image` + Supabase CDN transforms.
+1. **Mobile-first PWA** — design and test at 375px width first; scale up with responsive breakpoints. Partner dashboards may use wider layouts but must remain usable on tablet.
+2. **Server Components by default** — fetch data on the server. Add `"use client"` only when the component needs browser APIs, local state, or event handlers.
+3. **No mock data in production paths** — delete `src/lib/attractions.ts`, `src/data/attractions.ts`, and all legacy mock components during rebuild. Every page reads from Supabase.
+4. **Feature-based organisation** — group UI by domain (`property/`, `booking/`, `partner/`, `admin/`), not by atomic type alone. Shared primitives live in `ui/`.
+5. **Thin pages, fat features** — route `page.tsx` files orchestrate data fetching and layout only. Business UI lives in feature components.
+6. **Accessibility is non-negotiable** — WCAG 2.1 AA: semantic HTML, keyboard navigation, visible focus rings, ARIA only when native semantics are insufficient.
+7. **Performance budget** — LCP < 2.5s on 4G; CLS < 0.1; property images via `next/image` with Supabase CDN transforms; no layout shift from unsized images.
+8. **i18n everywhere** — zero hardcoded user-facing strings in components. EN + FIL updated together in every PR that adds UI.
+9. **Optimistic UI only where safe** — wishlist toggle yes; booking/payment no. Never optimistically confirm a booking or payment.
+10. **One design system** — Tailwind tokens in `globals.css`; all UI built from `src/components/ui/` primitives. No one-off styled buttons in feature code.
 
-### 6.2 Route Groups
+---
+
+### 6.2 Frontend Architecture Standards Matrix
+
+Agents must implement every **MVP Required** item. Do not skip silently.
+
+| Pattern | DIP implementation | Tier | Notes |
+| --- | --- | --- | --- |
+| Feature-Based Architecture | `src/components/{feature}/` + matching routes | **MVP Required** | Features: `property`, `booking`, `search`, `partner`, `admin`, `auth`, `account` |
+| Component Composition | Container (Server) + Presentational (Client) split | **MVP Required** | Server fetches; Client handles interaction |
+| Server / Client boundary | `"use client"` only at leaf nodes | **MVP Required** | Never mark a layout or page client unless unavoidable |
+| Design System / UI Kit | `src/components/ui/` primitives | **MVP Required** | Button, Input, Select, Card, Modal, Badge, Skeleton, Toast |
+| Responsive Design | Mobile-first Tailwind breakpoints | **MVP Required** | `sm` 640, `md` 768, `lg` 1024, `xl` 1280 |
+| State Management | React state + URL searchParams + Supabase session | **MVP Required** | No Redux/Zustand unless this guide is updated |
+| Server State | Server Components + Server Actions | **MVP Required** | No React Query for MVP |
+| Form Handling | React Hook Form + Zod resolver | **MVP Required** | All forms: booking, auth, partner CRUD |
+| Input Validation (client) | Zod schemas shared with Server Actions | **MVP Required** | Same schema in `src/lib/validations/` |
+| Error Handling (UI) | Toast + inline field errors + error boundaries | **MVP Required** | Map `ActionResult.error.code` to i18n keys |
+| Loading States | Skeleton components matching final layout | **MVP Required** | No spinners that cause layout shift |
+| Empty States | Dedicated empty-state components with CTA | **MVP Required** | Bookings list, wishlist, search results |
+| Error Boundaries | `error.tsx` per route group | **MVP Required** | `(public)`, `(customer)`, `(partner)`, `(admin)` |
+| Suspense Boundaries | `loading.tsx` + `<Suspense>` for slow sections | **MVP Required** | Search results, property gallery |
+| Authentication UI | Supabase Auth + middleware guards | **MVP Required** | Login, register, partner register, forgot password |
+| Authorization (RBAC) UI | Role-based nav + route guards | **MVP Required** | Hide partner nav from customers; redirect wrong roles |
+| i18n | `next-intl` with `/[locale]/` prefix | **MVP Required** | `en` and `fil` message files |
+| SEO | `generateMetadata`, JSON-LD, sitemap | **MVP Required** | Every public page |
+| PWA | Manifest + service worker + install prompt | **MVP Required** | Offline shell only — not offline booking |
+| Maps | Google Maps or Mapbox lazy-loaded | **MVP Required** | Search map + property detail pin |
+| Image Optimisation | `next/image` + Supabase transform URLs | **MVP Required** | Always set `width`/`height` or `fill` + `sizes` |
+| Code Splitting | Dynamic `import()` for maps, charts, heavy UI | **MVP Required** | Reduce initial JS bundle |
+| Accessibility | WCAG 2.1 AA | **MVP Required** | See [6.18 Accessibility](#618-accessibility-standard) |
+| Performance Optimisation | Core Web Vitals budget | **MVP Required** | See [6.19 Performance Budget](#619-performance-budget) |
+| Toast / Notifications | Sonner or shadcn toast | **MVP Required** | Success/error feedback for all mutations |
+| Modal / Dialog patterns | `ui/Dialog` — one pattern only | **MVP Required** | Booking confirm, image gallery, delete confirm |
+| Date Picker | Shared `DateRangePicker` for search + booking | **MVP Required** | Min stay validation surfaced in UI |
+| File Upload UI | Drag-drop + preview for partner photos | **MVP Required** | Upload via signed URL from Server Action |
+| Feature Flags | `src/lib/feature-flags.ts` | **MVP Required** | Hide loyalty/compare when off |
+| Unit Testing | Vitest + Testing Library | **MVP Required** | Forms, validators, utility functions |
+| Component Testing | Vitest + Testing Library | **MVP Required** | BookingForm, SearchFilters, PropertyCard |
+| E2E Testing | Playwright smoke tests | **MVP Required** | Home, search, property, login, book flow |
+| Consistent Naming | Section 7.1 | **MVP Required** | Always |
+| Storybook | Component catalogue | **Post-MVP** | Not required for 1-week sprint |
+| Animation library | CSS transitions + `useReveal` hook | **MVP Required** | No heavy animation libraries |
+| Dark mode | CSS variables ready | **Post-MVP** | Light mode only for MVP |
+
+---
+
+### 6.3 Layered Frontend Architecture
+
+```
+Browser Request
+    → middleware.ts          (session refresh, locale, role redirect, rate limit)
+    → layout.tsx             (Server — shell, nav, providers)
+    → page.tsx               (Server — fetch data, pass props)
+    → FeatureContainer       (Server — optional; composes data + sections)
+    → FeatureComponent       (Client — interactivity, forms, maps)
+    → ui/ primitives         (Client — stateless, reusable)
+    → Server Action          (mutation)
+    → Service / Repository   (backend — see §5)
+```
+
+**Rules:**
+- `page.tsx` must not exceed ~80 lines. Extract sections into feature components.
+- Pass **serialisable props** from Server to Client components. No Supabase client instances as props.
+- Co-locate feature-specific hooks in `src/hooks/` or `src/components/{feature}/hooks/`.
+
+---
+
+### 6.4 Route Groups & URL Structure
+
+All public routes are locale-prefixed for SEO and hreflang:
 
 ```
 src/app/
-├── (public)/                    # No auth required
-│   ├── page.tsx                 # Home
-│   ├── search/page.tsx          # Search + filters + map
-│   ├── properties/[slug]/page.tsx
-│   ├── areas/[slug]/page.tsx    # Area landing (SEO)
-│   └── layout.tsx
-├── (auth)/
-│   ├── login/page.tsx
-│   ├── register/page.tsx
-│   ├── register/partner/page.tsx
-│   └── layout.tsx
-├── (customer)/                  # Requires customer role
-│   ├── account/bookings/page.tsx
-│   ├── account/wishlist/page.tsx
-│   ├── account/reviews/page.tsx
-│   └── layout.tsx               # Auth guard
-├── (partner)/                   # Requires partner_owner | partner_staff
-│   ├── dashboard/page.tsx
-│   ├── property/page.tsx
-│   ├── rooms/page.tsx
-│   ├── availability/page.tsx
-│   ├── rates/page.tsx
-│   ├── packages/page.tsx
-│   ├── bookings/page.tsx
-│   ├── staff/page.tsx
-│   └── layout.tsx
-├── (admin)/                     # Requires admin role
-│   ├── partners/page.tsx
-│   ├── properties/page.tsx
-│   ├── bookings/page.tsx
-│   └── layout.tsx
-├── api/webhooks/paymongo/route.ts
-├── layout.tsx                   # Root
+├── [locale]/                        # next-intl locale segment (en | fil)
+│   ├── (public)/
+│   │   ├── page.tsx                 # Home
+│   │   ├── search/page.tsx          # Search + filters + map split view
+│   │   ├── properties/[slug]/page.tsx
+│   │   ├── areas/[slug]/page.tsx    # Area landing (SEO)
+│   │   ├── privacy/page.tsx
+│   │   ├── terms/page.tsx
+│   │   └── layout.tsx               # PublicHeader + Footer
+│   ├── (auth)/
+│   │   ├── login/page.tsx
+│   │   ├── register/page.tsx
+│   │   ├── register/partner/page.tsx
+│   │   ├── forgot-password/page.tsx
+│   │   ├── reset-password/page.tsx
+│   │   ├── verify-email/page.tsx
+│   │   └── layout.tsx               # Centred auth card layout
+│   ├── (customer)/
+│   │   ├── account/
+│   │   │   ├── page.tsx             # Profile overview
+│   │   │   ├── bookings/page.tsx
+│   │   │   ├── bookings/[id]/page.tsx
+│   │   │   ├── wishlist/page.tsx
+│   │   │   └── reviews/page.tsx
+│   │   └── layout.tsx               # CustomerAccountNav + auth guard
+│   ├── (partner)/
+│   │   ├── dashboard/page.tsx
+│   │   ├── onboarding/page.tsx      # Shown when partner status = pending
+│   │   ├── property/page.tsx
+│   │   ├── property/photos/page.tsx
+│   │   ├── rooms/page.tsx
+│   │   ├── availability/page.tsx
+│   │   ├── rates/page.tsx
+│   │   ├── packages/page.tsx
+│   │   ├── bookings/page.tsx
+│   │   ├── bookings/[id]/page.tsx   # Check-in, room assignment
+│   │   ├── staff/page.tsx
+│   │   ├── verification/page.tsx    # Business doc upload
+│   │   └── layout.tsx               # PartnerSidebar + auth guard
+│   ├── (admin)/
+│   │   ├── dashboard/page.tsx
+│   │   ├── partners/page.tsx
+│   │   ├── partners/[id]/page.tsx
+│   │   ├── properties/page.tsx
+│   │   ├── bookings/page.tsx
+│   │   └── layout.tsx               # AdminSidebar + auth guard
+│   └── layout.tsx                   # Root locale layout (providers)
+├── api/
+│   ├── webhooks/paymongo/route.ts
+│   └── health/route.ts
 ├── sitemap.ts
 └── robots.ts
 ```
 
-### 6.3 Folder Structure
+**Route naming rules:**
+- Public content: kebab-case slugs from DB (`/properties/bella-vista-resort`)
+- Account areas: nested under `/account/` (customer) or `/dashboard/` (partner/admin)
+- Never expose internal UUIDs in public URLs — use slugs
+
+---
+
+### 6.5 Folder Structure
 
 ```
 src/
-├── app/                         # Routes (above)
-├── actions/                     # Server Actions
+├── app/                              # Routes only — thin pages
+├── actions/                          # Server Actions (thin — see §5.13)
 ├── components/
-│   ├── ui/                      # Button, Input, Card, Modal…
-│   ├── forms/                   # BookingForm, PropertyForm…
-│   ├── maps/                    # PropertyMap, SearchMap
-│   ├── property/                # PropertyCard, RoomTypeList…
-│   └── layout/                  # Header, Footer, Nav
-├── hooks/                       # useLocale, useMediaQuery…
+│   ├── ui/                           # Design system primitives (no business logic)
+│   │   ├── button.tsx
+│   │   ├── input.tsx
+│   │   ├── select.tsx
+│   │   ├── card.tsx
+│   │   ├── dialog.tsx
+│   │   ├── badge.tsx
+│   │   ├── skeleton.tsx
+│   │   ├── toast.tsx
+│   │   ├── date-range-picker.tsx
+│   │   └── empty-state.tsx
+│   ├── layout/                       # Shell components
+│   │   ├── public-header.tsx
+│   │   ├── public-footer.tsx
+│   │   ├── partner-sidebar.tsx
+│   │   ├── admin-sidebar.tsx
+│   │   ├── customer-account-nav.tsx
+│   │   ├── locale-switcher.tsx
+│   │   └── mobile-nav.tsx
+│   ├── property/                     # Property feature
+│   │   ├── property-card.tsx
+│   │   ├── property-gallery.tsx
+│   │   ├── property-amenities.tsx
+│   │   ├── room-type-list.tsx
+│   │   ├── room-type-card.tsx
+│   │   └── property-map-pin.tsx
+│   ├── search/                       # Search feature
+│   │   ├── search-bar.tsx
+│   │   ├── search-filters.tsx
+│   │   ├── search-results.tsx
+│   │   ├── search-map.tsx
+│   │   └── search-sort.tsx
+│   ├── booking/                      # Booking feature
+│   │   ├── booking-form.tsx
+│   │   ├── booking-summary.tsx
+│   │   ├── booking-status-badge.tsx
+│   │   ├── booking-card.tsx
+│   │   └── payment-redirect.tsx
+│   ├── partner/                      # Partner portal feature
+│   │   ├── property-form.tsx
+│   │   ├── room-type-form.tsx
+│   │   ├── availability-calendar.tsx
+│   │   ├── rate-plan-form.tsx
+│   │   └── staff-invite-form.tsx
+│   ├── admin/                        # Admin feature
+│   │   ├── partner-approval-table.tsx
+│   │   └── booking-management-table.tsx
+│   └── auth/                         # Auth feature
+│       ├── login-form.tsx
+│       ├── register-form.tsx
+│       └── partner-register-form.tsx
+├── hooks/
+│   ├── use-locale.ts
+│   ├── use-media-query.ts
+│   ├── use-toast.ts
+│   └── use-debounce.ts
 ├── lib/
-│   ├── supabase/
-│   │   ├── client.ts            # Browser client
-│   │   ├── server.ts            # Server Component client
-│   │   └── middleware.ts        # Session refresh
+│   ├── supabase/                     # client.ts, server.ts, middleware.ts
+│   ├── api/response.ts               # ActionResult type (shared with backend)
 │   ├── paymongo/
 │   ├── email/
 │   ├── i18n/
 │   │   ├── config.ts
+│   │   ├── routing.ts
 │   │   └── messages/
 │   │       ├── en.json
 │   │       └── fil.json
-│   └── validations/             # Zod schemas
+│   ├── validations/                  # Zod schemas (shared client + server)
+│   ├── feature-flags.ts
+│   ├── format/                       # formatCurrency, formatDate, formatRating
+│   └── utils.ts                      # cn() helper (clsx + tailwind-merge)
 ├── types/
-│   ├── database.types.ts        # Generated — do not hand-edit
-│   └── index.ts                 # App-level types
-└── middleware.ts                # Auth routing + locale
+│   ├── database.types.ts             # Generated — do not hand-edit
+│   ├── domain/                       # View models / DTOs
+│   │   ├── property.ts
+│   │   ├── booking.ts
+│   │   └── partner.ts
+│   └── index.ts
+└── middleware.ts
 ```
 
-### 6.4 Auth Middleware
+---
 
-`src/middleware.ts` must:
+### 6.6 Server vs Client Component Rules
 
-1. Refresh Supabase session.
-2. Redirect unauthenticated users from `(customer)`, `(partner)`, `(admin)` routes.
-3. Redirect wrong roles (e.g. customer hitting `/partner/*`).
-4. Redirect `partner` with `status !== approved` to onboarding/pending page.
+| Use Server Component when | Use Client Component when |
+| --- | --- |
+| Fetching data from Supabase | Form inputs and submission |
+| Rendering static content | Click/hover/scroll handlers |
+| SEO metadata generation | Browser APIs (geolocation, localStorage) |
+| Accessing cookies/headers directly | React state (`useState`, `useReducer`) |
+| No interactivity needed | Maps, date pickers, modals, toasts |
+| Passing data down to Client children | Real-time subscriptions (partner dashboard) |
 
-### 6.5 Data Fetching
+**Anti-pattern:** Marking an entire page `"use client"` to fetch data with `useEffect`. Fetch in the Server Component parent instead.
 
-| Context | Method |
-|---------|--------|
-| Public property pages | Server Component + Supabase server client |
-| Search | Server Component with URL searchParams; paginate 20/page |
-| Mutations | Server Actions with revalidation |
-| Real-time (optional) | Supabase Realtime on partner booking dashboard only |
+**Provider boundary:** Wrap only the subtree that needs client context:
 
-**Caching:** Use `unstable_cache` or Next.js `fetch` cache for published property lists (revalidate 60s). Never cache user-specific booking data.
-
-### 6.6 i18n
-
-- Library: `next-intl` (recommended) or lightweight custom context.
-- URL strategy: `/en/...` and `/fil/...` **or** cookie + `Accept-Language` — pick one, default **`/en`** prefix for SEO.
-- All copy in JSON message files — **both** `en.json` and `fil.json` updated together.
-- Property content: use `description_en` / `description_fil` from DB.
-
-### 6.7 PWA
-
-- `public/manifest.json` — name: DIP, theme color from design tokens.
-- `@serwist/next` or `next-pwa` for service worker.
-- Offline: cache static assets + show offline fallback page. **Booking requires network.**
-
-### 6.8 SEO
-
-- Dynamic `metadata` per property, area, search.
-- JSON-LD `Hotel` / `Resort` schema on property pages.
-- `sitemap.ts` — all published properties + areas.
-- Canonical URLs, Open Graph images from property hero photo.
-- Filipino + English hreflang tags.
-
-### 6.9 Design Tokens (keep from rebuild)
-
-```css
---cream: #FFF8EE;
---ocean: #1E88E5;
---teal: #0E7C7B;
---gold: #F4A93E;
---ink: #1F2A2E;
+```tsx
+// app/[locale]/layout.tsx (Server)
+export default function LocaleLayout({ children }) {
+  return (
+    <NextIntlClientProvider messages={messages}>
+      <ToastProvider>
+        {children}
+      </ToastProvider>
+    </NextIntlClientProvider>
+  );
+}
 ```
 
-Font: **Geologica** (already in layout). Maintain warm, eco-travel aesthetic adapted for Quezon hospitality.
+---
 
-### 6.10 Feature Flags
+### 6.7 State Management
+
+| State type | Tool | Example |
+| --- | --- | --- |
+| URL / shareable | `searchParams` | Filters, sort, pagination, dates |
+| Server / remote | Server Components + Actions | Property data, bookings |
+| Form local | React Hook Form | Booking form, partner CRUD |
+| UI ephemeral | `useState` | Modal open, mobile nav, gallery index |
+| Auth session | Supabase SSR cookies | User, role — read via server client |
+| Wishlist (MVP) | Server Action + revalidate | Persisted in DB, not localStorage |
+| Toast | Toast provider | Mutation feedback |
+
+**Do not use** localStorage for booking state, cart, or auth tokens. Supabase session is cookie-based.
+
+**Search state lives in the URL:**
+
+```
+/en/search?area=lucena&checkIn=2026-08-01&checkOut=2026-08-03&guests=2&sort=price_asc&page=1
+```
+
+This enables shareable links, SEO indexing of filtered views, and browser back/forward.
+
+---
+
+### 6.8 Form Handling Standard
+
+**Stack:** React Hook Form + `@hookform/resolvers/zod` + shared Zod schema.
 
 ```typescript
-// src/lib/feature-flags.ts
-export const flags = {
-  loyalty: process.env.FEATURE_FLAG_LOYALTY === 'true',
-  compare: process.env.FEATURE_FLAG_COMPARE === 'true',
-} as const;
+// Pattern every form must follow
+'use client';
+
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createBookingSchema } from '@/lib/validations/booking';
+import { createBooking } from '@/actions/bookings/create-booking';
+
+export function BookingForm({ property, roomType }: Props) {
+  const form = useForm({ resolver: zodResolver(createBookingSchema) });
+
+  async function onSubmit(data: CreateBookingInput) {
+    const result = await createBooking(data);
+    if (!result.success) {
+      // Map result.error.code to i18n message
+      toast.error(t(`errors.${result.error.code}`));
+      return;
+    }
+    router.push(result.data.paymentUrl);
+  }
+
+  return ( /* ... */ );
+}
 ```
 
-UI for flagged features **must not render** when false. Do not leave dead nav links.
+**Rules:**
+- Every form field has a `<label>` or `aria-label`.
+- Show inline field errors below the input — not only in a toast.
+- Disable submit button while `isSubmitting` — show loading state on button.
+- Never clear the form on server error — preserve user input.
+- Partner multi-step forms (property setup): use URL step param or local step state; save draft on each step via Server Action.
 
-### 6.11 Testing (Frontend)
+---
 
-- **Required:** Playwright smoke tests — home, search, property detail, login.
-- **Required:** Component tests for BookingForm validation (Vitest + Testing Library).
-- Run before marking any booking flow task done.
+### 6.9 Data Fetching Patterns
+
+| Page / Feature | Pattern |
+| --- | --- |
+| Home (featured properties) | Server Component → repository → `unstable_cache` 60s |
+| Search results | Server Component → read `searchParams` → `search_properties()` RPC |
+| Property detail | Server Component → fetch by slug → `generateMetadata` + JSON-LD |
+| Customer bookings | Server Component → Supabase server client → customer-scoped query |
+| Partner dashboard stats | Server Component → aggregate query |
+| Partner booking list (live) | Client Component → Supabase Realtime subscription (optional MVP) |
+| Mutations | Server Action → return `ActionResult` → `revalidatePath` |
+
+**Parallel fetching on property page:**
+
+```typescript
+// app/[locale]/(public)/properties/[slug]/page.tsx
+const [property, reviews, availability] = await Promise.all([
+  getPropertyBySlug(slug),
+  getPropertyReviews(slug),
+  getAvailabilityPreview(propertyId, defaultDates),
+]);
+```
+
+**Never fetch in Client Components what can be fetched on the server.**
+
+---
+
+### 6.10 View Models & DTOs (Frontend)
+
+Never pass raw `database.types.ts` rows to Client Components. Map to view models:
+
+```typescript
+// src/types/domain/property.ts
+export type PropertyCardDTO = {
+  id: string;
+  slug: string;
+  name: string;
+  areaName: string;
+  propertyType: 'resort' | 'hotel' | 'homestay';
+  minRate: number;        // formatted in component via formatCurrency()
+  rating: number;
+  reviewCount: number;
+  heroImageUrl: string;
+  featured: boolean;
+};
+
+// src/lib/mappers/property.mapper.ts
+export function toPropertyCardDTO(row: PropertySearchRow): PropertyCardDTO { /* ... */ }
+```
+
+This prevents leaking internal fields (`commission_rate`, `partner_id`, `deleted_at`) to the client bundle.
+
+---
+
+### 6.11 Error, Loading & Empty States
+
+Every data-driven view must handle all three states:
+
+| State | Implementation |
+| --- | --- |
+| **Loading** | `loading.tsx` in route group + `<Skeleton>` matching content shape |
+| **Error** | `error.tsx` with retry button; log error server-side |
+| **Empty** | `<EmptyState icon title description action />` — never a blank page |
+
+**Route-level files required:**
+
+```
+(public)/search/loading.tsx
+(public)/search/error.tsx
+(customer)/account/bookings/loading.tsx
+(partner)/bookings/loading.tsx
+```
+
+**Mutation errors:** Toast for global failures; inline errors for field validation.
+
+**Error code → i18n mapping:**
+
+```typescript
+// lib/i18n/error-map.ts
+export function getErrorMessage(code: string, t: TFunction): string {
+  return t(`errors.${code}`, { defaultValue: t('errors.generic') });
+}
+```
+
+---
+
+### 6.12 Auth Middleware & Route Guards
+
+`src/middleware.ts` responsibilities (in order):
+
+1. Refresh Supabase session via `@supabase/ssr`.
+2. Resolve locale (`next-intl` middleware).
+3. Rate-limit auth routes (see §5.14).
+4. Redirect unauthenticated users away from `(customer)`, `(partner)`, `(admin)`.
+5. Redirect authenticated users away from `(auth)` routes (login/register).
+6. Enforce role-based access:
+
+| Route prefix | Allowed roles |
+| --- | --- |
+| `/account/*` | `customer` |
+| `/dashboard/*` (partner) | `partner_owner`, `partner_staff` |
+| `/admin/*` | `admin` |
+
+7. Redirect `partner_owner` with `partners.status !== 'approved'` to `/onboarding`.
+8. Redirect `partner_staff` away from staff management and verification routes.
+
+**Never rely on hiding nav links as the only access control.** Middleware + Server Action checks are both required.
+
+---
+
+### 6.13 i18n Standard
+
+**Library:** `next-intl` (required).
+
+**URL strategy:** Locale prefix — `/en/search`, `/fil/search`. Default locale `en`. Redirect `/` → `/en`.
+
+**Message file structure:**
+
+```json
+// messages/en.json
+{
+  "common": { "search": "Search", "book": "Book Now" },
+  "property": { "perNight": "per night", "reviews": "{count} reviews" },
+  "booking": { "checkIn": "Check-in", "checkOut": "Check-out" },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "booking.unavailable": "This room is no longer available for the selected dates.",
+    "promo.expired": "This promo code has expired."
+  }
+}
+```
+
+**Rules:**
+- DB content (property name, description): use `description_en` / `description_fil` columns — not message files.
+- UI chrome (buttons, labels, errors): message files only.
+- Update **both** `en.json` and `fil.json` in the same commit.
+- Use ICU plural/format syntax for counts and currency display.
+- `<LocaleSwitcher />` in public header and account nav.
+
+---
+
+### 6.14 PWA Standard
+
+**Required files:**
+
+```
+public/
+├── manifest.json
+├── icons/
+│   ├── icon-192.png
+│   ├── icon-512.png
+│   └── apple-touch-icon.png
+└── offline.html                  # Fallback page
+```
+
+**manifest.json minimum:**
+
+```json
+{
+  "name": "DIP — Quezon Resorts & Hotels",
+  "short_name": "DIP",
+  "start_url": "/en",
+  "display": "standalone",
+  "background_color": "#FFF8EE",
+  "theme_color": "#0E7C7B",
+  "icons": [ /* 192, 512 */ ]
+}
+```
+
+**Service worker:** `@serwist/next` — cache static assets (JS, CSS, fonts, icons). Do **not** cache API responses or Supabase data.
+
+**Install prompt:** Show a non-intrusive banner on second visit (mobile only). Dismissable; respect `beforeinstallprompt`.
+
+**Offline behaviour:** Show `offline.html` when network unavailable. Display a clear message — booking requires connection.
+
+---
+
+### 6.15 SEO Standard
+
+**Every public page must implement:**
+
+```typescript
+// generateMetadata example — property detail
+export async function generateMetadata({ params }): Promise<Metadata> {
+  const property = await getPropertyBySlug(params.slug);
+  return {
+    title: `${property.name} — DIP Quezon`,
+    description: property.metaDescription ?? property.descriptionEn.slice(0, 160),
+    alternates: {
+      canonical: `${APP_URL}/${params.locale}/properties/${params.slug}`,
+      languages: { en: `.../en/...`, fil: `.../fil/...` },
+    },
+    openGraph: {
+      title: property.name,
+      images: [{ url: property.heroImageUrl, width: 1200, height: 630 }],
+    },
+  };
+}
+```
+
+**JSON-LD on property pages:**
+
+```typescript
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': property.propertyType === 'hotel' ? 'Hotel' : 'Resort',
+  name: property.name,
+  address: { '@type': 'PostalAddress', addressLocality: property.areaName, addressRegion: 'Quezon' },
+  geo: { '@type': 'GeoCoordinates', latitude: property.latitude, longitude: property.longitude },
+  aggregateRating: { '@type': 'AggregateRating', ratingValue: property.rating, reviewCount: property.reviewCount },
+};
+```
+
+**Sitemap:** Dynamic — all published properties + all areas. Regenerated on deploy.
+
+**robots.txt:** Allow public routes; disallow `/admin/`, `/dashboard/`, `/account/`.
+
+---
+
+### 6.16 Maps Integration
+
+- **Lazy load** map components: `const SearchMap = dynamic(() => import('./search-map'), { ssr: false, loading: () => <MapSkeleton /> })`.
+- **Search page layout:** List view default on mobile; toggle to map view. Side-by-side on `lg+`.
+- **Near me:** Browser geolocation API (with permission prompt) → sort by distance client-side or pass coords to search RPC.
+- **Property detail:** Static pin map (no scroll zoom hijack on mobile).
+- **Never expose** server-side Maps API key — use `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` with HTTP referrer restriction in Google Cloud Console.
+
+---
+
+### 6.17 Design System & UI Standards
+
+**Design tokens** (defined in `globals.css` — do not hardcode hex in components):
+
+```css
+:root {
+  --cream: #FFF8EE;
+  --sand: #FDECD2;
+  --ocean: #1E88E5;
+  --teal: #0E7C7B;
+  --teal-dark: #0B5E5D;
+  --gold: #F4A93E;
+  --ink: #1F2A2E;
+  --ink-soft: #64716F;
+  --line: #F0DFC2;
+  --success: #2E7D32;
+  --error: #C62828;
+  --warning: #F57F17;
+}
+```
+
+**Typography:** Geologica (already loaded). Scale:
+
+| Token | Size | Use |
+| --- | --- | --- |
+| `text-xs` | 12px | Badges, meta |
+| `text-sm` | 14px | Body small, captions |
+| `text-base` | 16px | Body |
+| `text-lg` | 18px | Subheadings |
+| `text-xl`–`text-4xl` | — | Section titles, hero |
+
+**Component rules:**
+- All interactive elements have `focus-visible:ring-2 ring-teal` (or equivalent).
+- Buttons: primary (teal), secondary (outline), ghost, destructive — defined in `ui/button.tsx` only.
+- Cards: consistent `rounded-2xl border border-line bg-white shadow-sm`.
+- Spacing: use Tailwind scale only — no arbitrary `[13px]` values.
+- Icons: `lucide-react` only — no mixing icon libraries.
+
+**Responsive breakpoints:**
+
+| Breakpoint | Layout behaviour |
+| --- | --- |
+| `< md` | Single column; bottom nav or hamburger; map toggle |
+| `md` | Two-column search (list + map); partner sidebar collapsible |
+| `lg+` | Full partner/admin sidebar; property gallery grid |
+
+---
+
+### 6.18 Accessibility Standard
+
+**MVP requirements (WCAG 2.1 AA):**
+
+- [ ] All images have descriptive `alt` text (empty `alt=""` for decorative only)
+- [ ] All form inputs have associated `<label>` elements
+- [ ] Colour contrast ratio ≥ 4.5:1 for body text, ≥ 3:1 for large text
+- [ ] Keyboard navigable: all interactive elements reachable via Tab
+- [ ] Focus visible on all interactive elements
+- [ ] Modals trap focus and close on Escape
+- [ ] Toast messages use `role="status"` or `role="alert"`
+- [ ] Loading skeletons have `aria-busy="true"` on container
+- [ ] Booking status badges include text — not colour alone
+- [ ] Date picker usable via keyboard
+
+**Test with:** axe DevTools or Lighthouse accessibility audit before marking UI tasks done.
+
+---
+
+### 6.19 Performance Budget
+
+| Metric | Target | How |
+| --- | --- | --- |
+| LCP | < 2.5s | Priority hero image preload; Server Components |
+| CLS | < 0.1 | Explicit image dimensions; skeleton same size as content |
+| INP | < 200ms | Minimise Client Component JS; debounce search input |
+| JS bundle (first load) | < 200KB gzipped | Dynamic import maps; tree-shake lucide icons |
+| Images | WebP, responsive | `next/image` with `sizes` prop |
+
+**Image `sizes` example:**
+
+```tsx
+<Image
+  src={property.heroImageUrl}
+  alt={property.name}
+  fill
+  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+  priority={isAboveFold}
+/>
+```
+
+**Font:** `display=swap` already set. Preconnect to Google Fonts in root layout.
+
+---
+
+### 6.20 Feature-Specific UI Patterns
+
+#### Public — Search & Discovery
+- Search bar on home: location (area select), date range, guests — mirrors `/search` params.
+- Filter drawer on mobile; sidebar on desktop.
+- Sort: price, rating, featured — updates URL param.
+- Property card: hero image, name, area, min rate, rating, wishlist heart.
+- Infinite scroll **post-MVP**; offset pagination (page param) for MVP.
+
+#### Public — Property Detail
+- Gallery: hero + thumbnails; lightbox on click.
+- Sticky booking widget on desktop; bottom sheet on mobile.
+- Room type cards: name, capacity, amenities, price per night, select button.
+- Package upsell section below room types.
+- Reviews section: average rating, individual reviews, post-stay CTA hidden until eligible.
+
+#### Customer — Booking Flow
+1. Select room type + dates on property page
+2. Booking summary sidebar (dates, guests, price breakdown, promo code input)
+3. Submit → Server Action → redirect to PayMongo
+4. Return URL → booking confirmation page with status
+5. Email confirmation sent async
+
+**Never embed PayMongo card form directly in MVP** — use hosted checkout redirect for PCI simplicity.
+
+#### Partner — Portal
+- Sidebar nav with icons; active state; staff role hides restricted items.
+- Availability calendar: month view; click date to edit count; bulk edit range.
+- Booking detail: guest info, status timeline, assign room unit dropdown, check-in button.
+- Verification upload: drag-drop; status badge (pending/approved/rejected).
+
+#### Admin — Console
+- Data tables with status badges, action buttons (approve/reject/suspend).
+- Partner detail: business info, documents, approval actions.
+- Minimal styling — functional over pretty; reuse `ui/` table components.
+
+---
+
+### 6.21 Testing (Frontend)
+
+**Required before marking UI tasks done:**
+
+| Test type | Tool | Coverage |
+| --- | --- | --- |
+| Unit | Vitest | `formatCurrency`, mappers, Zod schemas, error-map |
+| Component | Vitest + Testing Library | `BookingForm`, `SearchFilters`, `PropertyCard` |
+| E2E smoke | Playwright | Home load, search, property detail, login, booking redirect |
+
+**Playwright minimum scenarios:**
+
+```typescript
+test('customer can search and view property', async ({ page }) => {
+  await page.goto('/en/search?area=lucena');
+  await expect(page.getByRole('heading', { name: /results/i })).toBeVisible();
+  await page.getByRole('link', { name: /resort/i }).first().click();
+  await expect(page.getByRole('button', { name: /book/i })).toBeVisible();
+});
+```
+
+**CI gate:** Playwright smoke + Vitest must pass before merge.
+
+---
+
+### 6.22 Frontend Anti-Patterns
+
+**Do NOT:**
+
+- Mark entire pages as `"use client"` for data fetching
+- Hardcode English strings in JSX — use `useTranslations()` or server `getTranslations()`
+- Store auth tokens in localStorage
+- Use `any` for Supabase query results — use generated types + mappers
+- Build custom modals/toasts per feature — use `ui/Dialog` and `ui/Toast`
+- Optimistically update booking or payment state
+- Render raw DB error messages in UI
+- Use `offset` scroll jacking on property gallery (mobile UX)
+- Import the entire `lucide-react` bundle — import individual icons
+- Add CSS-in-JS libraries — Tailwind only
+- Create a second navbar/footer — one layout system (see §10 legacy list)
+- Use mock data imports from legacy `attractions.ts`
 
 ---
 
@@ -1042,9 +1622,10 @@ Execute in this order. Do not start later phases until earlier blockers are done
 
 A task is **done** only when ALL apply:
 
+**General:**
 - [ ] Code follows this guide's patterns
 - [ ] Zod validation on inputs
-- [ ] RLS policies cover new tables
+- [ ] RLS policies cover new tables (backend)
 - [ ] Types regenerated if schema changed
 - [ ] EN + FIL strings added for new UI
 - [ ] No `any` types without comment justification
@@ -1053,6 +1634,21 @@ A task is **done** only when ALL apply:
 - [ ] Tests written/updated for booking, auth, or payment changes
 - [ ] No secrets committed
 - [ ] TBD items not silently decided — documented in TBD registry if unresolved
+
+**Frontend-specific (when task touches UI):**
+- [ ] Server/Client boundary correct — no unnecessary `"use client"` on pages
+- [ ] Loading, error, and empty states implemented
+- [ ] Responsive at 375px and 1280px
+- [ ] Accessibility: labels, focus states, keyboard nav verified
+- [ ] No hardcoded English strings — both `en.json` and `fil.json` updated
+- [ ] View model mapper used — raw DB rows not passed to Client Components
+- [ ] `next/image` used for all photos with correct `sizes` prop
+
+**Backend-specific (when task touches data/API):**
+- [ ] Server Action returns `ActionResult<T>` shape
+- [ ] Error codes map to i18n keys (not raw DB messages)
+- [ ] Migration + RLS + indexes in same PR
+- [ ] `database.types.ts` regenerated and committed
 
 ---
 
@@ -1105,4 +1701,4 @@ Until then, **this file is authoritative**.
 
 ---
 
-*Last updated: 2026-07-30 — Backend architecture review pass. Update TBD registry when product decisions change.*
+*Last updated: 2026-07-30 — Backend (§5) + Frontend (§6) architecture standards pass. Update TBD registry when product decisions change.*
