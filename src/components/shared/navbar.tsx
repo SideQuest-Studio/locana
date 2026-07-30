@@ -18,7 +18,7 @@ export default function Navbar() {
             </div>
             <div className="flex items-center">
               <span className="text-xl font-bold tracking-tight text-slate-800">
-                Locana
+                DIP
               </span>
               <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 uppercase">
                 PH

@@ -41,7 +41,7 @@ export default function Navbar() {
             className={`text-2xl font-semibold transition-colors ${scrolled ? "text-[#1F2A2E]" : "text-white"}`}
             style={{ fontFamily: "var(--font-display)" }}
           >
-            Locana
+            DIP
           </span>
         </a>
 

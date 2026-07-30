@@ -8,7 +8,7 @@ const COLUMNS = [
   },
   {
     title: "Company",
-    links: ["About Locana", "Our Guides", "Sustainability Pact", "Careers"],
+    links: ["About DIP", "Our Guides", "Sustainability Pact", "Careers"],
   },
   {
     title: "Support",
@@ -30,7 +30,7 @@ export default function Footer() {
                 className="text-xl font-semibold text-white"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                Locana
+                DIP
               </span>
             </div>
             <p className="text-sm text-white/50 leading-relaxed max-w-xs">
@@ -70,7 +70,7 @@ export default function Footer() {
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 text-xs text-white/40">
           <span>
-            &copy; {new Date().getFullYear()} Locana Philippines. All nature reserves reserved.
+            &copy; {new Date().getFullYear()}  Philippines. All nature reserves reserved.
           </span>
           <div className="flex gap-5">
             <a href="#" className="hover:text-white/70 transition-colors">

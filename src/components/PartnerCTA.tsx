@@ -20,7 +20,7 @@ export default function PartnerCTA() {
               className="text-lg sm:text-xl font-semibold text-white"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              List your property or experience with Locana
+              List your property or experience with DIP
             </h3>
             <p className="text-sm text-white/60 mt-1.5">
               Reach more travelers and grow your business with us.
