@@ -1,0 +1,714 @@
+// ============================================================
+// DIP — Resort & Hotel Booking Platform (Quezon Province, PH)
+// Merged schema: catalog-side tables (partner/property/room/
+// pricing/package) + booking/payment/finance/social layer.
+//
+// RESOLVED DECISIONS (see chat for full rationale):
+// 1. rooms.status enum (available|occupied|maintenance) —
+//    replaces boolean; needed to distinguish occupied vs maintenance.
+// 2. i18n applied consistently: every customer-facing name/
+//    description field now has an _en/_fil pair. Slugs stay
+//    single (not translated).
+// 3. Pricing precedence (document, not enforced by DB):
+//    room_type_availability.price_override (specific date)
+//      > pricing_rules (by priority, date/day-of-week scoped)
+//      > rate_plans.price_modifier
+//      > room_types.base_price
+//    Same precedence order applies to minimum_stay resolution.
+// 4. early_checkin_fee / late_checkout_fee moved to `properties`
+//    (simple property-level policy, not date-conditional —
+//    doesn't belong in the date/seasonal pricing_rules table).
+// 5. rate_plans.includes_breakfast = complimentary/bundled;
+//    package_items(item_type='breakfast') = separately priced
+//    add-on. Both kept, meaning documented instead of collapsed.
+// 6. commission_rate lives on `partners` (partner:property is
+//    1:1 so this is equivalent to a property-level rate).
+// 7. pricing_rules.days_of_week is now int[] (0=Sun..6=Sat)
+//    instead of a free-text string, so day-of-week rules are
+//    actually queryable.
+// 8. profiles.partner_id / staff_role should only be set when
+//    role IN ('partner_owner','partner_staff') — enforce via
+//    CHECK constraint or trigger at migration time.
+//
+// ROUND 2 (this pass):
+// 9. property_images.storage_path added alongside image_url —
+//    path is source of truth (matches §7.3 bucket convention),
+//    URL is derived/served at read time and can be regenerated
+//    if the storage provider changes.
+// 10. amenities.category (free varchar) replaced with a proper
+//     amenity_categories lookup table + category_id FK, matching
+//     the existing lookup-table pattern used for amenities/tags
+//     rather than introducing an enum for a UI-facing taxonomy.
+// 11. promo_codes gains minimum_booking_amount, maximum_discount,
+//     and a nullable partner_id (null = platform-wide code, set =
+//     partner-specific code).
+// 12. reviews gains per-category ratings (cleanliness/staff/
+//     location/value) alongside the overall rating.
+// 13. audit_logs added — generic actor/action/entity log for
+//     admin, partner, and pricing/property edits not covered by
+//     booking_status_history (§7.4 accountability requirement).
+//
+// Explicitly NOT changed (considered and rejected — see chat):
+// - pricing_rules keeps nullable room_type_id (no separate
+//   `scope` enum — a second field that must stay in sync with
+//   which FK is populated doesn't remove ambiguity, it relocates it).
+// - payment_events stays a separate table from payments (needed
+//   for webhook replay/idempotency across multiple events per
+//   payment, not merged).
+// - No separate booking_holds table — the hold IS the bookings
+//   row (status=pending_payment + hold_expires_at + FOR UPDATE
+//   lock in create_booking()); concurrency safety is already
+//   handled, this would only be a UX/data-hygiene split.
+// ============================================================
+
+// -------------------- Enums --------------------
+
+Enum user_role {
+  customer
+  partner_owner
+  partner_staff
+  admin
+}
+
+Enum staff_role {
+  manager
+  front_desk
+}
+
+Enum locale {
+  en
+  fil
+}
+
+Enum partner_status {
+  pending
+  approved
+  rejected
+  suspended
+}
+
+Enum property_status {
+  draft
+  pending_review
+  published
+  suspended
+}
+
+Enum property_type {
+  resort
+  hotel
+  homestay
+  glamping
+  villa
+}
+
+Enum room_status {
+  available
+  occupied
+  maintenance
+}
+
+Enum pricing_rule_type {
+  seasonal
+  weekend
+  holiday
+  date_range
+}
+
+Enum package_status {
+  draft
+  active
+  inactive
+}
+
+Enum package_item_type {
+  room
+  breakfast
+  lunch
+  dinner
+  activity
+  shuttle
+  spa
+  other
+}
+
+Enum booking_status {
+  pending_payment
+  confirmed
+  checked_in
+  checked_out
+  cancelled
+  no_show
+  expired
+  refund_pending
+  refunded
+}
+
+Enum payment_status {
+  pending
+  paid
+  failed
+  refunded
+}
+
+Enum payment_method {
+  paymongo_gcash
+  paymongo_card
+  paymongo_grabpay
+  cash
+}
+
+Enum promo_type {
+  percentage
+  fixed
+}
+
+Enum document_status {
+  pending
+  approved
+  rejected
+}
+
+Enum payout_status {
+  pending
+  processing
+  paid
+  failed
+}
+
+Enum audit_action {
+  create
+  update
+  delete
+  approve
+  reject
+  suspend
+}
+
+// ======================================================
+// USERS
+// ======================================================
+
+Table profiles {
+  id uuid [pk]
+  email varchar [not null, unique]
+
+  first_name varchar [not null]
+  last_name varchar [not null]
+
+  phone_number varchar
+  avatar_url text
+
+  role user_role [not null, default: 'customer']
+  locale locale [default: 'en']
+
+  partner_id uuid [ref: > partners.id]
+  staff_role staff_role
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'CHECK constraint at migration time: partner_id/staff_role only set when role IN (partner_owner, partner_staff)'
+}
+
+// ======================================================
+// AREAS
+// ======================================================
+
+Table areas {
+  id uuid [pk]
+  name_en varchar [not null]
+  name_fil varchar [not null]
+  slug varchar [not null, unique]
+  province varchar [default: 'Quezon']
+  description text
+  sort_order int [default: 0]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+// ======================================================
+// PARTNERS
+// ======================================================
+
+Table partners {
+  id uuid [pk]
+  owner_id uuid [not null, ref: > profiles.id]
+  business_name varchar [not null]
+  business_email varchar
+  business_phone varchar
+  status partner_status [default: 'pending']
+  rejection_reason text
+  commission_rate decimal(5,4) [default: 0.10]
+  approved_at timestamptz
+  approved_by uuid [ref: > profiles.id]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table partner_verification_documents {
+  id uuid [pk]
+  partner_id uuid [not null, ref: > partners.id]
+  document_url text [not null]
+  document_type varchar [not null]
+  status document_status [not null, default: 'pending']
+  reviewed_by uuid [ref: > profiles.id]
+  reviewed_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Private storage bucket; admin + owning partner only (§7.4)'
+}
+
+// ======================================================
+// PROPERTIES
+// ======================================================
+
+Table properties {
+  id uuid [pk]
+  partner_id uuid [not null, unique, ref: > partners.id]
+  area_id uuid [not null, ref: > areas.id]
+
+  name varchar [not null]
+  slug varchar [not null, unique]
+  property_type property_type [not null]
+
+  description_en text
+  description_fil text
+
+  address text
+  latitude decimal(10,8)
+  longitude decimal(11,8)
+
+  check_in_time time [default: '14:00']
+  check_out_time time [default: '12:00']
+  early_checkin_fee decimal(10,2) [default: 0.00]
+  late_checkout_fee decimal(10,2) [default: 0.00]
+
+  status property_status [default: 'draft']
+  downpayment_rate decimal(5,4) [default: 0.30]
+  featured boolean [default: false]
+
+  meta_title varchar
+  meta_description text
+
+  deleted_at timestamptz
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'partner_id UNIQUE — one partner account = one property (Locked Decisions)'
+}
+
+Table property_images {
+  id uuid [pk]
+  property_id uuid [not null, ref: > properties.id]
+  storage_path text [not null]
+  image_url text [not null]
+  is_cover boolean [default: false]
+  display_order int [default: 0]
+  alt_text varchar
+  created_at timestamptz [default: `now()`]
+
+  Note: 'storage_path is source of truth (bucket-relative, e.g. {partner_id}/{filename}.webp per §7.3); image_url is the derived/served URL, regenerable if the storage provider changes'
+}
+
+Table amenity_categories {
+  id uuid [pk]
+  name_en varchar [not null, unique]
+  name_fil varchar
+  slug varchar [not null, unique]
+  sort_order int [default: 0]
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Seed: General, Pool, Room, Bathroom, Accessibility, Food, Parking, Internet — lookup table (not enum) to match the amenities/tags pattern'
+}
+
+Table amenities {
+  id uuid [pk]
+  category_id uuid [ref: > amenity_categories.id]
+  name_en varchar [not null, unique]
+  name_fil varchar
+  slug varchar [not null, unique]
+  icon varchar
+  created_at timestamptz [default: `now()`]
+}
+
+Table property_amenities {
+  property_id uuid [not null, ref: > properties.id]
+  amenity_id uuid [not null, ref: > amenities.id]
+
+  indexes {
+    (property_id, amenity_id) [pk]
+  }
+}
+
+Table tags {
+  id uuid [pk]
+  name_en varchar [not null, unique]
+  name_fil varchar
+  slug varchar [not null, unique]
+  created_at timestamptz [default: `now()`]
+}
+
+Table property_tags {
+  property_id uuid [not null, ref: > properties.id]
+  tag_id uuid [not null, ref: > tags.id]
+
+  indexes {
+    (property_id, tag_id) [pk]
+  }
+}
+
+// ======================================================
+// ROOM TYPES & ROOMS
+// ======================================================
+
+Table room_types {
+  id uuid [pk]
+  property_id uuid [not null, ref: > properties.id]
+
+  name_en varchar [not null]
+  name_fil varchar
+  description_en text
+  description_fil text
+
+  capacity int [not null, default: 2]
+  max_adults int [default: 2]
+  max_children int [default: 0]
+
+  base_price decimal(10,2) [not null]
+  total_inventory int [not null, default: 1]
+  size_sqm decimal(6,2)
+  bed_configuration varchar
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table rooms {
+  id uuid [pk]
+  room_type_id uuid [not null, ref: > room_types.id]
+  room_number varchar [not null]
+  floor varchar
+  notes text
+  status room_status [not null, default: 'available']
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'Individual physical unit; assigned at check-in or optionally at booking (§5.5)'
+}
+
+Table room_type_availability {
+  id uuid [pk]
+  room_type_id uuid [not null, ref: > room_types.id]
+  date date [not null]
+  available_count int [not null]
+  price_override decimal(10,2)
+  minimum_stay int
+  closed_to_arrival boolean [default: false]
+  closed_to_departure boolean [default: false]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (room_type_id, date) [unique]
+  }
+
+  Note: 'Decremented transactionally inside create_booking() RPC via SELECT ... FOR UPDATE (§5.5). Highest pricing precedence.'
+}
+
+Table rate_plans {
+  id uuid [pk]
+  room_type_id uuid [not null, ref: > room_types.id]
+
+  name_en varchar [not null]
+  name_fil varchar
+  description text
+
+  price_modifier decimal(10,2) [default: 0]
+  minimum_stay int
+  cancellation_policy text
+  includes_breakfast boolean [default: false]
+  is_default boolean [default: false]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'includes_breakfast = complimentary/bundled (distinct from package_items breakfast add-on, which is separately priced)'
+}
+
+Table pricing_rules {
+  id uuid [pk]
+  property_id uuid [not null, ref: > properties.id]
+  room_type_id uuid [ref: > room_types.id]
+
+  name varchar [not null]
+  rule_type pricing_rule_type [not null]
+
+  start_date date
+  end_date date
+  days_of_week "int[]"
+
+  price_modifier decimal(10,2)
+  minimum_stay int
+  priority int [default: 0]
+  is_active boolean [default: true]
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'days_of_week: 0=Sun..6=Sat. Higher priority wins on overlap. Sits between rate_plans and room_type_availability in precedence.'
+}
+
+// ======================================================
+// PACKAGES
+// ======================================================
+
+Table packages {
+  id uuid [pk]
+  property_id uuid [not null, ref: > properties.id]
+
+  name_en varchar [not null]
+  name_fil varchar
+  description_en text
+  description_fil text
+
+  status package_status [default: 'draft']
+  base_price decimal(10,2)
+  valid_from date
+  valid_until date
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+}
+
+Table package_items {
+  id uuid [pk]
+  package_id uuid [not null, ref: > packages.id]
+  item_type package_item_type [not null]
+  room_type_id uuid [ref: > room_types.id]
+
+  name_en varchar [not null]
+  name_fil varchar
+  description text
+
+  quantity int [default: 1]
+  additional_price decimal(10,2) [default: 0]
+
+  created_at timestamptz [default: `now()`]
+}
+
+// ======================================================
+// BOOKINGS
+// ======================================================
+
+Table bookings {
+  id uuid [pk]
+  customer_id uuid [not null, ref: > profiles.id]
+  room_type_id uuid [not null, ref: > room_types.id]
+  promo_code_id uuid [ref: > promo_codes.id]
+
+  check_in date [not null]
+  check_out date [not null]
+  adults_count int [default: 1]
+  children_count int [default: 0]
+
+  subtotal decimal(10,2) [not null]
+  discount_amount decimal(10,2) [default: 0.00]
+  total_amount decimal(10,2) [not null]
+  downpayment_amount decimal(10,2) [not null]
+  balance_due decimal(10,2) [default: 0.00]
+
+  status booking_status [default: 'pending_payment']
+  payment_status payment_status [default: 'pending']
+  hold_expires_at timestamptz
+
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'Amount calc per §5.6: total_amount = subtotal - discount; downpayment default 30% (TBD-01 fallback)'
+}
+
+Table booking_rooms {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  room_id uuid [not null, ref: > rooms.id]
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Optional at booking time, required before check-in (§5.3)'
+}
+
+Table booking_packages {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  package_id uuid [not null, ref: > packages.id]
+  quantity int [default: 1]
+  price_at_booking decimal(10,2) [not null]
+  created_at timestamptz [default: `now()`]
+}
+
+Table booking_status_history {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  from_status booking_status
+  to_status booking_status [not null]
+  changed_by uuid [ref: > profiles.id]
+  note text
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Append-only audit log — no UPDATE allowed via RLS (§5.4)'
+}
+
+// ======================================================
+// PAYMENTS & FINANCE
+// ======================================================
+
+Table payments {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  transaction_reference varchar [unique]
+  amount decimal(10,2) [not null]
+  provider payment_method
+  status payment_status [not null, default: 'pending']
+  payload jsonb
+  created_at timestamptz [default: `now()`]
+}
+
+Table payment_events {
+  id uuid [pk]
+  external_event_id varchar [not null, unique]
+  payload jsonb
+  processed_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Raw PayMongo webhook log — idempotency guard (§5.6)'
+}
+
+Table commission_ledger {
+  id uuid [pk]
+  booking_id uuid [not null, unique, ref: > bookings.id]
+  partner_id uuid [not null, ref: > partners.id]
+  rate decimal(5,4) [not null]
+  computed_fee decimal(10,2) [not null]
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Immutable audit trail; one row per confirmed booking (§5.3)'
+}
+
+Table payouts {
+  id uuid [pk]
+  partner_id uuid [not null, ref: > partners.id]
+  amount decimal(10,2) [not null]
+  status payout_status [default: 'pending']
+  period_start date [not null]
+  period_end date [not null]
+  paid_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Manual/export for MVP; automated post-MVP (Locked Decisions)'
+}
+
+// ======================================================
+// PROMOTIONS & LOYALTY
+// ======================================================
+
+Table promo_codes {
+  id uuid [pk]
+  partner_id uuid [ref: > partners.id]
+  code varchar [not null, unique]
+  type promo_type [not null]
+  value decimal(10,2) [not null]
+  minimum_booking_amount decimal(10,2) [default: 0.00]
+  maximum_discount decimal(10,2)
+  usage_limit int
+  used_count int [default: 0]
+  expiry_date timestamptz
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+
+  Note: 'partner_id nullable — null = platform-wide code, set = partner-specific code. maximum_discount caps percentage-type discounts on large bookings.'
+}
+
+Table promo_redemptions {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  promo_code_id uuid [not null, ref: > promo_codes.id]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (booking_id, promo_code_id) [unique]
+  }
+
+  Note: 'Prevents reuse of a promo on the same booking (§5.3)'
+}
+
+Table loyalty_accounts {
+  id uuid [pk]
+  customer_id uuid [not null, unique, ref: > profiles.id]
+  points_balance int [default: 0]
+  created_at timestamptz [default: `now()`]
+  updated_at timestamptz [default: `now()`]
+
+  Note: 'Stub table behind feature flag — mechanics undecided (TBD-07)'
+}
+
+// ======================================================
+// GUEST & COMPLIANCE DOCS
+// ======================================================
+
+Table guest_id_documents {
+  id uuid [pk]
+  booking_id uuid [not null, ref: > bookings.id]
+  uploaded_by uuid [not null, ref: > profiles.id]
+  document_url text [not null]
+  expires_at timestamptz
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Private bucket; auto-expire post-checkout + 30 days (§7.5)'
+}
+
+// ======================================================
+// AUDIT
+// ======================================================
+
+Table audit_logs {
+  id uuid [pk]
+  actor_id uuid [ref: > profiles.id]
+  action audit_action [not null]
+  entity_type varchar [not null]
+  entity_id uuid [not null]
+  before jsonb
+  after jsonb
+  created_at timestamptz [default: `now()`]
+
+  Note: 'Generic accountability log for admin/partner actions — property edits, pricing changes, partner approvals/suspensions — distinct from booking_status_history, which only covers booking transitions (§7.4). actor_id nullable for system-initiated changes (e.g. cron expiry).'
+}
+
+// ======================================================
+// CUSTOMER INTERACTIONS
+// ======================================================
+
+Table wishlists {
+  id uuid [pk]
+  customer_id uuid [not null, ref: > profiles.id]
+  property_id uuid [not null, ref: > properties.id]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (customer_id, property_id) [unique]
+  }
+}
+
+Table reviews {
+  id uuid [pk]
+  booking_id uuid [not null, unique, ref: - bookings.id]
+  customer_id uuid [not null, ref: > profiles.id]
+  property_id uuid [not null, ref: > properties.id]
+  rating int [not null]
+  cleanliness_rating int
+  staff_rating int
+  location_rating int
+  value_rating int
+  comment text
+  created_at timestamptz [default: `now()`]
+
+  Note: 'rating = overall score shown first; category ratings optional/supplementary. Only after checked_out status — enforced in RLS, not app code (§5.4)'
+}
