@@ -517,6 +517,7 @@ Table bookings {
   downpayment_amount decimal(10,2) [not null]
   balance_due decimal(10,2) [default: 0.00]
 
+  wishlist_id uuid [ref: > wishlists.id]
   status booking_status [default: 'pending_payment']
   payment_status payment_status [default: 'pending']
   hold_expires_at timestamptz
