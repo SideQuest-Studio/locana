@@ -161,9 +161,9 @@ When the user updates decisions, edit this table first, then implement.
 
 ```
 auth.users (Supabase Auth)
-└── profiles (1:1, trigger-created on signup)
-├── role: customer | partner_owner | partner_staff | admin
-└── partner_staff → partner_id (FK) + staff_role: manager | front_desk
+    └── profiles (1:1, trigger-created on signup)
+            ├── role: customer | partner_owner | partner_staff | admin
+            └── partner_staff → partner_id (FK) + staff_role: manager | front_desk
 
 
 `partner_id` and `staff_role` are columns directly on `profiles` — there is no separate `partner_staff` table. A `CHECK` constraint (or trigger) must enforce that both are only set when `role IN ('partner_owner', 'partner_staff')`.
@@ -305,7 +305,7 @@ WHERE room_type_id = p_room_type_id
 
 `SELECT … FOR UPDATE` inside the RPC is the correct tool here. Do not use optimistic locking for booking — the window for double-booking is real, especially during peak weekends.
 
-**Minimum stay validation:** Check `pricing_rules.min_stay` inside the RPC before proceeding. Return a typed error code the Server Action can map to an i18n key.
+**Minimum stay validation:** Check `pricing_rules.minimum_stay` inside the RPC before proceeding. Return a typed error code the Server Action can map to an i18n key.
 
 ---
 
