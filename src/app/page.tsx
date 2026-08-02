@@ -2,6 +2,9 @@
 
 import React, { useState } from "react";
 import { WishlistProvider } from "@/src/context/WishlistContext";
+import { AuthProvider } from "@/src/context/AuthContext";
+import AuthModal from "@/src/components/AuthModal";
+import ProfileModal from "@/src/components/ProfileModal";
 import Navbar from "@/src/components/Navbar";
 import HeroSection from "@/src/components/HeroSection";
 import CategorySection from "@/src/components/CategorySection";
@@ -27,15 +30,19 @@ export default function Home() {
   };
 
   return (
-    <WishlistProvider>
-      <Navbar />
-      <HeroSection />
-      <CategorySection onSelectCategory={handleSelectCategory} />
-      <FeaturedDestinations filterCategory={activeCategory} />
-      <DealsSection />
-      <TravelGuides />
-      <PartnerCTA />
-      <Footer />
-    </WishlistProvider>
+    <AuthProvider>
+      <WishlistProvider>
+        <Navbar />
+        <HeroSection />
+        <CategorySection onSelectCategory={handleSelectCategory} />
+        <FeaturedDestinations filterCategory={activeCategory} />
+        <DealsSection />
+        <TravelGuides />
+        <PartnerCTA />
+        <Footer />
+        <AuthModal />
+        <ProfileModal />
+      </WishlistProvider>
+    </AuthProvider>
   );
 }
