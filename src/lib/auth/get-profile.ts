@@ -37,16 +37,13 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("*, partner:partners(*)")
+    .select("*")
     .eq("id", user.id)
     .single();
 
   if (error || !data) return null;
 
-  const { partner, ...profile } = data as Profile & { partner: Partner | Partner[] | null };
-  const partnerRow = Array.isArray(partner) ? partner[0] ?? null : partner;
-
-  return { ...profile, partner: partnerRow };
+  return { ...data, partner: null } as UserProfile;
 }
 
 export function isPartnerRole(role: Profile["role"]) {

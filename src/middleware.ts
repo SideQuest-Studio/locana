@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { updateSession } from "@/src/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 import type { PartnerStatus, UserRole } from "@/src/types/database.types";
 
@@ -23,9 +24,11 @@ function isPartnerRole(role: UserRole) {
 }
 
 export async function middleware(request: NextRequest) {
+  // 1. Refresh session and get the updated response
+  const supabaseResponse = await updateSession(request);
+  
+  // 2. Extract supabase client for session checking
   const { pathname } = request.nextUrl;
-
-  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,20 +42,16 @@ export async function middleware(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
-          });
         },
       },
-    }
+    },
   );
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthRoute = AUTH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const isAuthRoute = AUTH_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`));
   const isProtected =
     pathname.startsWith(CUSTOMER_PREFIX) ||
     pathname.startsWith(PARTNER_PREFIX) ||
@@ -81,7 +80,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, partner:partners(status)")
+    .select("role")
     .eq("id", user.id)
     .single();
 
@@ -90,9 +89,11 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = profile.role as UserRole;
+  console.log(`Middleware: Path ${pathname}, Role: ${role}`);
 
   if (pathname.startsWith(ADMIN_PREFIX)) {
     if (role !== "admin") {
+      console.log("Middleware: Redirecting non-admin from admin path");
       return NextResponse.redirect(new URL("/account", request.url));
     }
     return supabaseResponse;
@@ -103,9 +104,12 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
     if (!isPartnerRole(role)) {
+      console.log("Middleware: Redirecting non-partner from partner path");
       return NextResponse.redirect(new URL("/account", request.url));
     }
-    if (!isPartnerApproved(profile as MiddlewareProfile)) {
+    // Only check approval status if user has a partner role
+    if (isPartnerRole(role) && !isPartnerApproved(profile as MiddlewareProfile)) {
+      console.log("Middleware: Redirecting unapproved partner");
       return NextResponse.redirect(new URL("/account?pending=partner", request.url));
     }
     return supabaseResponse;
@@ -113,8 +117,10 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith(CUSTOMER_PREFIX)) {
     if (role === "admin") {
+      console.log("Middleware: Redirecting admin from customer path");
       return NextResponse.redirect(new URL("/admin", request.url));
     }
+    console.log("Middleware: Allowing access to customer path");
     return supabaseResponse;
   }
 
