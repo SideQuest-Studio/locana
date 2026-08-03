@@ -15,40 +15,66 @@ export async function registerPartner(raw: unknown) {
 
   try {
     const admin = createAdminClient();
+    console.log("Admin client initialized. Is SERVICE_ROLE_KEY present?", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: authData, error: authError } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    });
+    // 1. Check if user already exists
+    const { data: existingUsers } = await admin.auth.admin.listUsers();
+    const existingUser = existingUsers.users.find((u) => u.email === email);
 
-    if (authError || !authData.user) {
-      if (authError?.message.includes("already been registered")) {
-        return failure("auth.email_taken", "An account with this email already exists.");
+    let userId: string;
+
+    if (existingUser) {
+      // 2. Validate password for existing user
+      const { data: authData, error: signInError } = await admin.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        return failure("auth.invalid_credentials", "Incorrect password for existing account.");
       }
-      return failure("auth.signup_failed", authError?.message ?? "Could not create account.");
+      userId = authData.user.id;
+    } else {
+      // 3. Create new user if not exists
+      const { data: authData, error: authError } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (authError || !authData.user) {
+        return failure("auth.signup_failed", authError?.message ?? "Could not create account.");
+      }
+      userId = authData.user.id;
     }
 
-    const userId = authData.user.id;
-
-    const { data: partner, error: partnerError } = await admin
+    // 4. Create partner application
+    const { data: existingPartner } = await admin
       .from("partners")
-      .insert({
-        owner_id: userId,
-        business_name: businessName,
-        business_email: businessEmail || email,
-        business_phone: businessPhone || null,
-        status: "pending",
-      })
       .select("id")
-      .single();
+      .eq("owner_id", userId)
+      .maybeSingle();
 
-    if (partnerError || !partner) {
-      await admin.auth.admin.deleteUser(userId);
-      return failure("partner.create_failed", "Could not create partner application.");
+    let partnerId = existingPartner?.id;
+
+    if (!partnerId) {
+      const { data: newPartnerId, error: partnerError } = await admin.rpc("create_partner_rpc", {
+        p_id: crypto.randomUUID(), // Pass a new UUID
+        p_owner_id: userId,
+        p_business_name: businessName,
+        p_business_email: businessEmail || email,
+        p_business_phone: businessPhone || null,
+      });
+
+      if (partnerError || !newPartnerId) {
+        console.error("Partner RPC error:", partnerError);
+        return failure("partner.create_failed", `Could not create partner application: ${partnerError?.message || "Unknown error"}`);
+      }
+      partnerId = newPartnerId;
     }
 
+    // 5. Update profile to partner
     const [firstName, ...rest] = fullName.trim().split(" ");
     const lastName = rest.join(" ") || firstName;
 
@@ -56,21 +82,20 @@ export async function registerPartner(raw: unknown) {
       .from("profiles")
       .update({
         role: "partner_owner",
-        partner_id: partner.id,
+        partner_id: partnerId,
         first_name: firstName,
         last_name: lastName,
       })
       .eq("id", userId);
 
     if (profileError) {
-      await admin.from("partners").delete().eq("id", partner.id);
-      await admin.auth.admin.deleteUser(userId);
       return failure("profile.update_failed", "Could not finalize partner registration.");
     }
 
     revalidatePath("/admin/partners");
-    return success({ partnerId: partner.id });
-  } catch {
+    return success({ partnerId });
+  } catch (error) {
+    console.error("Registration error:", error);
     return failure("auth.unexpected", "Something went wrong. Please try again.");
   }
 }

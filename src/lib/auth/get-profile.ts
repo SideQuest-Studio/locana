@@ -33,7 +33,10 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    console.log("getUserProfile: No user found");
+    return null;
+  }
 
   const { data, error } = await supabase
     .from("profiles")
@@ -41,7 +44,15 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     .eq("id", user.id)
     .single();
 
-  if (error || !data) return null;
+  if (error) {
+    console.error("getUserProfile: Error fetching profile", error);
+    return null;
+  }
+  
+  if (!data) {
+    console.log("getUserProfile: No profile data found for", user.id);
+    return null;
+  }
 
   return { ...data, partner: null } as UserProfile;
 }

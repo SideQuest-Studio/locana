@@ -15,6 +15,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,9 +35,41 @@ export function LoginForm() {
     router.refresh();
   }
 
+  async function handleGoogleSignIn() {
+    setError(null);
+    setGoogleLoading(true);
+    const supabase = createClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/redirect` : undefined,
+      },
+    });
+
+    if (oauthError) {
+      setError(oauthError.message);
+      setGoogleLoading(false);
+    }
+  }
+
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to your DIP account">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="space-y-4">
+        <button
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading || loading}
+          className="w-full py-3.5 rounded-2xl border border-[#E2D1B8] flex items-center justify-center gap-2 text-sm font-semibold text-[#1F2A2E] hover:bg-[#F0DFC2]/40 transition-colors disabled:opacity-60"
+        >
+          {googleLoading ? "Connecting…" : "Continue with Google"}
+        </button>
+        <div className="relative flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#E2D1B8]" />
+          </div>
+          <span className="relative bg-[#FFF8EE] px-4 text-xs text-[#64716F]">Or continue with email</span>
+        </div>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
             {error}
@@ -70,7 +103,7 @@ export function LoginForm() {
         </div>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
           className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#1E88E5] to-[#0E7C7B] text-white text-sm font-semibold disabled:opacity-60"
         >
           {loading ? "Signing in…" : "Sign in"}
