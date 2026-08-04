@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { X, Mail, Lock, Eye, EyeOff, Compass, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabaseConfig } from "@/src/lib/supabase-auth";
+import Image from "next/image";
+import dipLogo from "@/src/assets/dip.png"
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuthModal, authMode, setAuthMode } = useAuth();
@@ -86,7 +88,7 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 sm:p-6 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-[#1F2A2E]/70 backdrop-blur-md transition-opacity duration-300 animate-fadeIn"
@@ -110,8 +112,8 @@ export default function AuthModal() {
         <div className="p-7 sm:p-9">
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#1E88E5] to-[#0E7C7B] flex items-center justify-center shadow-lg shadow-[#1E88E5]/25 mb-3">
-              <Compass className="h-6 w-6 text-white" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg mb-3">
+              <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
             </div>
             <h2
               className="text-2xl font-bold text-[#1F2A2E]"
@@ -131,22 +133,20 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={() => setAuthMode("login")}
-              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
-                authMode === "login"
-                  ? "bg-white text-[#1F2A2E] shadow-sm"
-                  : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
-              }`}
+              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${authMode === "login"
+                ? "bg-white text-[#1F2A2E] shadow-sm"
+                : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
+                }`}
             >
               Log In
             </button>
             <button
               type="button"
               onClick={() => setAuthMode("signup")}
-              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
-                authMode === "signup"
-                  ? "bg-white text-[#1E88E5] shadow-sm"
-                  : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
-              }`}
+              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${authMode === "signup"
+                ? "bg-white text-[#1E88E5] shadow-sm"
+                : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
+                }`}
             >
               Sign Up
             </button>
