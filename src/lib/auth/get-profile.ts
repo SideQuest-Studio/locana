@@ -44,17 +44,29 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     .eq("id", user.id)
     .single();
 
-  if (error) {
-    console.error("getUserProfile: Error fetching profile", error);
-    return null;
-  }
-  
-  if (!data) {
-    console.log("getUserProfile: No profile data found for", user.id);
+  if (error || !data) {
+    if (error) console.error("getUserProfile: Error fetching profile", error);
     return null;
   }
 
-  return { ...data, partner: null } as UserProfile;
+  let partner: Partner | null = null;
+  if (data.partner_id) {
+    const { data: partnerData } = await supabase
+      .from("partners")
+      .select("*")
+      .eq("id", data.partner_id)
+      .single();
+    if (partnerData) partner = partnerData as Partner;
+  } else if (isPartnerRole(data.role)) {
+    const { data: partnerData } = await supabase
+      .from("partners")
+      .select("*")
+      .eq("owner_id", user.id)
+      .single();
+    if (partnerData) partner = partnerData as Partner;
+  }
+
+  return { ...data, partner } as UserProfile;
 }
 
 export function isPartnerRole(role: Profile["role"]) {

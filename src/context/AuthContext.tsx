@@ -4,28 +4,19 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User, Session } from "@supabase/supabase-js";
 import { createClient } from "@/src/lib/supabase/client";
 
-// TODO: This is from the committed version
-/*
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
-}*/
-// TODO: This is the original one
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
   isAuthModalOpen: boolean;
-  authMode: "login" | "signup";
   openAuthModal: (mode?: "login" | "signup") => void;
   closeAuthModal: () => void;
+  authMode: "login" | "signup";
   setAuthMode: (mode: "login" | "signup") => void;
   isProfileModalOpen: boolean;
   openProfileModal: () => void;
   closeProfileModal: () => void;
-  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,8 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -65,7 +56,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // TODO: Placed for debugging purposes only
   const openAuthModal = (mode: "login" | "signup" = "login") => {
     setAuthMode(mode);
     setIsAuthModalOpen(true);
@@ -92,20 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{
-      user, session, loading, signOut,
-
-      // TODO: These are the removed components
-      // If ever, please remove this kung mapapasama to sa commit
-      isAuthModalOpen,
-      authMode,
-      openAuthModal,
-      closeAuthModal,
-      setAuthMode,
-      isProfileModalOpen,
-      openProfileModal,
-      closeProfileModal,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        signOut,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
+        authMode,
+        setAuthMode,
+        isProfileModalOpen,
+        openProfileModal,
+        closeProfileModal,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
