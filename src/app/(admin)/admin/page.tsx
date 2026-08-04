@@ -1,9 +1,8 @@
 import { createClient } from "@/src/lib/supabase/server";
-import { redirect } from "next/navigation";
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
-  const { data: pendingCount } = await supabase
+  const { count: pendingCount } = await supabase
     .from("partners")
     .select("id", { count: "exact", head: true })
     .eq("status", "pending");

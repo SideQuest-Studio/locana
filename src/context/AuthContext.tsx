@@ -9,6 +9,14 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  isAuthModalOpen: boolean;
+  openAuthModal: (mode?: "login" | "signup") => void;
+  closeAuthModal: () => void;
+  authMode: "login" | "signup";
+  setAuthMode: (mode: "login" | "signup") => void;
+  isProfileModalOpen: boolean;
+  openProfileModal: () => void;
+  closeProfileModal: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,6 +25,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -44,6 +56,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const openAuthModal = (mode: "login" | "signup" = "login") => {
+    setAuthMode(mode);
+    setIsAuthModalOpen(true);
+  };
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false);
+  };
+
+  const openProfileModal = () => {
+    setIsProfileModalOpen(true);
+  };
+
+  const closeProfileModal = () => {
+    setIsProfileModalOpen(false);
+  };
+
   const signOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -53,7 +82,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        signOut,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
+        authMode,
+        setAuthMode,
+        isProfileModalOpen,
+        openProfileModal,
+        closeProfileModal,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
