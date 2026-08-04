@@ -27,8 +27,12 @@ export async function middleware(request: NextRequest) {
   // 1. Refresh session and get the updated response
   const supabaseResponse = await updateSession(request);
   
-  // 2. Extract supabase client for session checking
   const { pathname } = request.nextUrl;
+
+  // IMMEDIATELY exempt the auth callback route
+  if (pathname.startsWith("/auth/redirect")) {
+    return supabaseResponse;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,7 +61,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(PARTNER_PREFIX) ||
     pathname.startsWith(ADMIN_PREFIX);
 
-  if (pathname === "/auth/redirect") {
+  if (pathname.startsWith("/auth/redirect")) {
     return supabaseResponse;
   }
 
