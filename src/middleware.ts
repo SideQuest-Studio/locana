@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith(PARTNER_PREFIX) ||
     pathname.startsWith(ADMIN_PREFIX);
 
-  if (pathname === "/auth/redirect") {
+  if (pathname.startsWith("/auth/redirect")) {
     return supabaseResponse;
   }
 
