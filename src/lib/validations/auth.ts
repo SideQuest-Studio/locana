@@ -29,3 +29,13 @@ export const rejectPartnerSchema = z.object({
   partnerId: z.string().uuid(),
   reason: z.string().min(3, "Provide a rejection reason"),
 });
+
+export const updateUserRoleSchema = z.object({
+  userId: z.string().uuid("Invalid user ID"),
+  role: z.enum(["customer", "partner_owner", "partner_staff", "admin"]),
+  partnerId: z.string().uuid("Invalid partner ID").optional().nullable(),
+  staffRole: z.enum(["manager", "front_desk"]).optional().nullable(),
+});
+
+export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>;
+

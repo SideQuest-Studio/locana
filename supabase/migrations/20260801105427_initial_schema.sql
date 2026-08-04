@@ -4,8 +4,10 @@
 
 CREATE TYPE "user_role" AS ENUM (
   'customer',
+  'user',
   'partner_owner',
   'partner_staff',
+  'partner',
   'admin'
 );
 
