@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { updateSession } from "@/src/lib/supabase/middleware";
-import { createServerClient } from "@supabase/ssr";
+import { updateSession, createRedirect } from "@/src/lib/supabase/middleware";
 import type { PartnerStatus, UserRole } from "@/src/types/database.types";
 
 const AUTH_PREFIXES = ["/login", "/register"];
@@ -8,48 +7,15 @@ const CUSTOMER_PREFIX = "/account";
 const PARTNER_PREFIX = "/dashboard";
 const ADMIN_PREFIX = "/admin";
 
-type MiddlewareProfile = {
-  role: UserRole;
-  partner: { status: PartnerStatus } | { status: PartnerStatus }[] | null;
-};
-
-function isPartnerApproved(profile: MiddlewareProfile) {
-  const partner = profile.partner;
-  const status = Array.isArray(partner) ? partner[0]?.status : partner?.status;
-  return status === "approved";
-}
-
 function isPartnerRole(role: UserRole) {
   return role === "partner_owner" || role === "partner_staff";
 }
 
 export async function middleware(request: NextRequest) {
-  // 1. Refresh session and get the updated response
-  const supabaseResponse = await updateSession(request);
+  // 1. Refresh session and get response & user
+  const { supabaseResponse, user, supabase } = await updateSession(request);
   
-  // 2. Extract supabase client for session checking
   const { pathname } = request.nextUrl;
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => {
-            request.cookies.set(name, value);
-          });
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const isAuthRoute = AUTH_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`));
   const isProtected =
@@ -67,7 +33,7 @@ export async function middleware(request: NextRequest) {
 
   if (isAuthRoute) {
     if (user) {
-      return NextResponse.redirect(new URL("/auth/redirect", request.url));
+      return createRedirect(new URL("/auth/redirect", request.url), request, supabaseResponse);
     }
     return supabaseResponse;
   }
@@ -75,52 +41,64 @@ export async function middleware(request: NextRequest) {
   if (!user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    return createRedirect(loginUrl, request, supabaseResponse);
   }
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, partner_id")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return createRedirect(new URL("/login", request.url), request, supabaseResponse);
   }
 
   const role = profile.role as UserRole;
-  console.log(`Middleware: Path ${pathname}, Role: ${role}`);
+
+  let partnerStatus: PartnerStatus | null = null;
+  if (isPartnerRole(role)) {
+    if (profile.partner_id) {
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("status")
+        .eq("id", profile.partner_id)
+        .single();
+      partnerStatus = (partner?.status as PartnerStatus) ?? null;
+    } else {
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("status")
+        .eq("owner_id", user.id)
+        .single();
+      partnerStatus = (partner?.status as PartnerStatus) ?? null;
+    }
+  }
 
   if (pathname.startsWith(ADMIN_PREFIX)) {
     if (role !== "admin") {
-      console.log("Middleware: Redirecting non-admin from admin path");
-      return NextResponse.redirect(new URL("/account", request.url));
+      return createRedirect(new URL("/account", request.url), request, supabaseResponse);
     }
     return supabaseResponse;
   }
 
   if (pathname.startsWith(PARTNER_PREFIX)) {
     if (role === "admin") {
-      return NextResponse.redirect(new URL("/admin", request.url));
+      return createRedirect(new URL("/admin", request.url), request, supabaseResponse);
     }
     if (!isPartnerRole(role)) {
-      console.log("Middleware: Redirecting non-partner from partner path");
-      return NextResponse.redirect(new URL("/account", request.url));
+      return createRedirect(new URL("/account", request.url), request, supabaseResponse);
     }
-    // Only check approval status if user has a partner role
-    if (isPartnerRole(role) && !isPartnerApproved(profile as MiddlewareProfile)) {
-      console.log("Middleware: Redirecting unapproved partner");
-      return NextResponse.redirect(new URL("/account?pending=partner", request.url));
+    if (partnerStatus !== "approved") {
+      return createRedirect(new URL("/account?pending=partner", request.url), request, supabaseResponse);
     }
     return supabaseResponse;
   }
 
   if (pathname.startsWith(CUSTOMER_PREFIX)) {
     if (role === "admin") {
-      console.log("Middleware: Redirecting admin from customer path");
-      return NextResponse.redirect(new URL("/admin", request.url));
+      return createRedirect(new URL("/admin", request.url), request, supabaseResponse);
     }
-    console.log("Middleware: Allowing access to customer path");
     return supabaseResponse;
   }
 
@@ -133,6 +111,7 @@ export const config = {
     "/dashboard/:path*",
     "/admin/:path*",
     "/login",
+    "/register",
     "/register/:path*",
     "/auth/redirect",
   ],
