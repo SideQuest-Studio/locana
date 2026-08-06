@@ -6,6 +6,8 @@ import Link from "next/link";
 import { registerPartner } from "@/src/actions/auth/register-partner";
 import { AuthShell } from "@/src/components/auth/auth-shell";
 
+import { createClient } from "@/src/lib/supabase/client";
+
 export function PartnerRegisterForm() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -15,6 +17,7 @@ export function PartnerRegisterForm() {
     businessName: "",
     businessEmail: "",
     businessPhone: "",
+    role: "partner_owner"
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

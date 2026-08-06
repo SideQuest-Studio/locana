@@ -125,7 +125,7 @@ CREATE TYPE "audit_action" AS ENUM (
 );
 
 CREATE TABLE "profiles" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "email" varchar UNIQUE NOT NULL,
   "first_name" varchar NOT NULL,
   "last_name" varchar NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE "profiles" (
 );
 
 CREATE TABLE "areas" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "name_en" varchar NOT NULL,
   "name_fil" varchar NOT NULL,
   "slug" varchar UNIQUE NOT NULL,
@@ -152,7 +152,7 @@ CREATE TABLE "areas" (
 );
 
 CREATE TABLE "partners" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "owner_id" uuid NOT NULL,
   "business_name" varchar NOT NULL,
   "business_email" varchar,
@@ -167,7 +167,7 @@ CREATE TABLE "partners" (
 );
 
 CREATE TABLE "partner_verification_documents" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "partner_id" uuid NOT NULL,
   "document_url" text NOT NULL,
   "document_type" varchar NOT NULL,
@@ -178,7 +178,7 @@ CREATE TABLE "partner_verification_documents" (
 );
 
 CREATE TABLE "properties" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "partner_id" uuid UNIQUE NOT NULL,
   "area_id" uuid NOT NULL,
   "name" varchar NOT NULL,
@@ -204,7 +204,7 @@ CREATE TABLE "properties" (
 );
 
 CREATE TABLE "property_images" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "property_id" uuid NOT NULL,
   "storage_path" text NOT NULL,
   "image_url" text NOT NULL,
@@ -215,7 +215,7 @@ CREATE TABLE "property_images" (
 );
 
 CREATE TABLE "amenity_categories" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "name_en" varchar UNIQUE NOT NULL,
   "name_fil" varchar,
   "slug" varchar UNIQUE NOT NULL,
@@ -224,7 +224,7 @@ CREATE TABLE "amenity_categories" (
 );
 
 CREATE TABLE "amenities" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "category_id" uuid,
   "name_en" varchar UNIQUE NOT NULL,
   "name_fil" varchar,
@@ -240,7 +240,7 @@ CREATE TABLE "property_amenities" (
 );
 
 CREATE TABLE "tags" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "name_en" varchar UNIQUE NOT NULL,
   "name_fil" varchar,
   "slug" varchar UNIQUE NOT NULL,
@@ -254,7 +254,7 @@ CREATE TABLE "property_tags" (
 );
 
 CREATE TABLE "room_types" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "property_id" uuid NOT NULL,
   "name_en" varchar NOT NULL,
   "name_fil" varchar,
@@ -272,7 +272,7 @@ CREATE TABLE "room_types" (
 );
 
 CREATE TABLE "rooms" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "room_type_id" uuid NOT NULL,
   "room_number" varchar NOT NULL,
   "floor" varchar,
@@ -283,7 +283,7 @@ CREATE TABLE "rooms" (
 );
 
 CREATE TABLE "room_type_availability" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "room_type_id" uuid NOT NULL,
   "date" date NOT NULL,
   "available_count" int NOT NULL,
@@ -295,7 +295,7 @@ CREATE TABLE "room_type_availability" (
 );
 
 CREATE TABLE "rate_plans" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "room_type_id" uuid NOT NULL,
   "name_en" varchar NOT NULL,
   "name_fil" varchar,
@@ -310,7 +310,7 @@ CREATE TABLE "rate_plans" (
 );
 
 CREATE TABLE "pricing_rules" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "property_id" uuid NOT NULL,
   "room_type_id" uuid,
   "name" varchar NOT NULL,
@@ -327,7 +327,7 @@ CREATE TABLE "pricing_rules" (
 );
 
 CREATE TABLE "packages" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "property_id" uuid NOT NULL,
   "name_en" varchar NOT NULL,
   "name_fil" varchar,
@@ -342,7 +342,7 @@ CREATE TABLE "packages" (
 );
 
 CREATE TABLE "package_items" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "package_id" uuid NOT NULL,
   "item_type" package_item_type NOT NULL,
   "room_type_id" uuid,
@@ -355,7 +355,7 @@ CREATE TABLE "package_items" (
 );
 
 CREATE TABLE "bookings" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "customer_id" uuid NOT NULL,
   "room_type_id" uuid NOT NULL,
   "promo_code_id" uuid,
@@ -376,14 +376,14 @@ CREATE TABLE "bookings" (
 );
 
 CREATE TABLE "booking_rooms" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "room_id" uuid NOT NULL,
   "created_at" timestamptz DEFAULT (now())
 );
 
 CREATE TABLE "booking_packages" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "package_id" uuid NOT NULL,
   "quantity" int DEFAULT 1,
@@ -392,7 +392,7 @@ CREATE TABLE "booking_packages" (
 );
 
 CREATE TABLE "booking_status_history" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "from_status" booking_status,
   "to_status" booking_status NOT NULL,
@@ -402,7 +402,7 @@ CREATE TABLE "booking_status_history" (
 );
 
 CREATE TABLE "payments" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "transaction_reference" varchar UNIQUE,
   "amount" decimal(10,2) NOT NULL,
@@ -413,7 +413,7 @@ CREATE TABLE "payments" (
 );
 
 CREATE TABLE "payment_events" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "external_event_id" varchar UNIQUE NOT NULL,
   "payload" jsonb,
   "processed_at" timestamptz,
@@ -421,7 +421,7 @@ CREATE TABLE "payment_events" (
 );
 
 CREATE TABLE "commission_ledger" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid UNIQUE NOT NULL,
   "partner_id" uuid NOT NULL,
   "rate" decimal(5,4) NOT NULL,
@@ -430,7 +430,7 @@ CREATE TABLE "commission_ledger" (
 );
 
 CREATE TABLE "payouts" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "partner_id" uuid NOT NULL,
   "amount" decimal(10,2) NOT NULL,
   "status" payout_status DEFAULT 'pending',
@@ -441,7 +441,7 @@ CREATE TABLE "payouts" (
 );
 
 CREATE TABLE "promo_codes" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "partner_id" uuid,
   "code" varchar UNIQUE NOT NULL,
   "type" promo_type NOT NULL,
@@ -456,14 +456,14 @@ CREATE TABLE "promo_codes" (
 );
 
 CREATE TABLE "promo_redemptions" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "promo_code_id" uuid NOT NULL,
   "created_at" timestamptz DEFAULT (now())
 );
 
 CREATE TABLE "loyalty_accounts" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "customer_id" uuid UNIQUE NOT NULL,
   "points_balance" int DEFAULT 0,
   "created_at" timestamptz DEFAULT (now()),
@@ -471,7 +471,7 @@ CREATE TABLE "loyalty_accounts" (
 );
 
 CREATE TABLE "guest_id_documents" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid NOT NULL,
   "uploaded_by" uuid NOT NULL,
   "document_url" text NOT NULL,
@@ -480,7 +480,7 @@ CREATE TABLE "guest_id_documents" (
 );
 
 CREATE TABLE "audit_logs" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "actor_id" uuid,
   "action" audit_action NOT NULL,
   "entity_type" varchar NOT NULL,
@@ -491,14 +491,14 @@ CREATE TABLE "audit_logs" (
 );
 
 CREATE TABLE "wishlists" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "customer_id" uuid NOT NULL,
   "property_id" uuid NOT NULL,
   "created_at" timestamptz DEFAULT (now())
 );
 
 CREATE TABLE "reviews" (
-  "id" uuid PRIMARY KEY,
+  "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "booking_id" uuid UNIQUE NOT NULL,
   "customer_id" uuid NOT NULL,
   "property_id" uuid NOT NULL,
