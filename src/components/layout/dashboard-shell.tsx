@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { Compass, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
+import Image from "next/image";
+import dipLogo from "@/src/assets/dip.png";
 import { createClient } from "@/src/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardSwitcher } from "@/src/components/layout/dashboard-switcher";
@@ -29,8 +31,8 @@ export async function DashboardShell({ children, nav, title }: ShellProps) {
       <header className="border-b border-[#F0DFC2] bg-white/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1E88E5] to-[#0E7C7B] flex items-center justify-center">
-              <Compass className="h-4 w-4 text-white" />
+            <div className="w-9 h-9 rounded-full border-2 border-black overflow-hidden flex items-center justify-center">
+              <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-semibold text-[#1F2A2E] hidden sm:inline">DIP</span>
           </Link>

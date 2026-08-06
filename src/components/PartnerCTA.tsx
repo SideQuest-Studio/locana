@@ -26,7 +26,7 @@ export default function PartnerCTA() {
               Reach more travelers and grow your business with us.
             </p>
           </div>
-          <AnimatedButton variant="light" icon={false} className="shrink-0 w-full sm:w-auto">
+          <AnimatedButton href="/register/partner" variant="light" icon={false} className="shrink-0 w-full sm:w-auto">
             Become a Partner
           </AnimatedButton>
         </div>

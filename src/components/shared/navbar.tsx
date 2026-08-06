@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Leaf, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import Image from "next/image";
+import dipLogo from "@/src/assets/dip.png";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,8 +15,8 @@ export default function Navbar() {
 
           {/* Logo */}
           <div className="flex items-center gap-2 cursor-pointer">
-            <div className="bg-teal-700 text-white p-1.5 rounded-lg">
-              <Leaf className="h-5 w-5" />
+            <div className="w-9 h-9 rounded-full border-2 border-black overflow-hidden flex items-center justify-center">
+              <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
             </div>
             <div className="flex items-center">
               <span className="text-xl font-bold tracking-tight text-slate-800">

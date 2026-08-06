@@ -1,5 +1,6 @@
 import React from "react";
-import { Compass } from "lucide-react";
+import Image from "next/image";
+import dipLogo from "@/src/assets/dip.png";
 
 const COLUMNS = [
   {
@@ -23,8 +24,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-white/10">
           <div>
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1E88E5] to-[#0E7C7B] flex items-center justify-center">
-                <Compass className="h-5 w-5 text-white" />
+              <div className="w-10 h-10 rounded-full border-2 border-black overflow-hidden flex items-center justify-center">
+                <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
               </div>
               <span
                 className="text-xl font-semibold text-white"
