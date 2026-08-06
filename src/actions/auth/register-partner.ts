@@ -15,11 +15,12 @@ export async function registerPartner(raw: unknown) {
 
   try {
     const admin = createAdminClient();
-    console.log("Admin client initialized. Is SERVICE_ROLE_KEY present?", !!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY);
 
     // 1. Check if user already exists
     const { data: existingUsers } = await admin.auth.admin.listUsers();
-    const existingUser = existingUsers.users.find((u) => u.email === email);
+    const existingUser = existingUsers?.users?.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase()
+    );
 
     let userId: string;
 
@@ -49,7 +50,7 @@ export async function registerPartner(raw: unknown) {
       userId = authData.user.id;
     }
 
-    // 4. Create partner application
+    // 4. Create partner application via RPC
     const { data: existingPartner } = await admin
       .from("partners")
       .select("id")
@@ -60,7 +61,6 @@ export async function registerPartner(raw: unknown) {
 
     if (!partnerId) {
       const { data: newPartnerId, error: partnerError } = await admin.rpc("create_partner_rpc", {
-        p_id: crypto.randomUUID(), // Pass a new UUID
         p_owner_id: userId,
         p_business_name: businessName,
         p_business_email: businessEmail || email,
@@ -69,12 +69,15 @@ export async function registerPartner(raw: unknown) {
 
       if (partnerError || !newPartnerId) {
         console.error("Partner RPC error:", partnerError);
-        return failure("partner.create_failed", `Could not create partner application: ${partnerError?.message || "Unknown error"}`);
+        return failure(
+          "partner.create_failed",
+          `Could not create partner application: ${partnerError?.message || "Unknown error"}`
+        );
       }
       partnerId = newPartnerId;
     }
 
-    // 5. Update profile to partner
+    // 5. Update profile names and ensure role is partner_owner and partner_id is set
     const [firstName, ...rest] = fullName.trim().split(" ");
     const lastName = rest.join(" ") || firstName;
 
@@ -89,6 +92,7 @@ export async function registerPartner(raw: unknown) {
       .eq("id", userId);
 
     if (profileError) {
+      console.error("Profile update error:", profileError);
       return failure("profile.update_failed", "Could not finalize partner registration.");
     }
 
@@ -99,3 +103,4 @@ export async function registerPartner(raw: unknown) {
     return failure("auth.unexpected", "Something went wrong. Please try again.");
   }
 }
+
