@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Menu, X, Compass, Heart, User, LogOut } from "lucide-react";
+import { Menu, X, Heart, User, LogOut } from "lucide-react";
 import AnimatedButton from "@/src/components/ui/AnimatedButton";
 import { useWishlist } from "@/src/context/WishlistContext";
 import { useAuth } from "@/src/context/AuthContext";
@@ -40,7 +40,7 @@ export default function Navbar() {
     >
       <div className="max-w-400 mx-auto px-5 sm:px-8 flex items-center justify-between">
         <a href="#top" className="flex items-center gap-2.5">
-          <div className="w-[50px] h-[50px] aspect-square rounded-2xl flex items-center justify-center overflow-hidden">
+          <div className="w-[50px] h-[50px] aspect-square rounded-full border-2 border-black flex items-center justify-center overflow-hidden">
             <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
           </div>
           <span

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Compass } from "lucide-react";
+import Image from "next/image";
+import dipLogo from "@/src/assets/dip.png";
 
 export function AuthShell({
   children,
@@ -15,8 +16,8 @@ export function AuthShell({
   return (
     <div className="min-h-screen bg-[#FFF8EE] flex flex-col items-center justify-center p-6">
       <Link href="/" className="flex items-center gap-2 mb-8">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1E88E5] to-[#0E7C7B] flex items-center justify-center">
-          <Compass className="h-5 w-5 text-white" />
+        <div className="w-10 h-10 rounded-full border-2 border-black overflow-hidden flex items-center justify-center">
+          <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
         </div>
         <span className="text-xl font-semibold text-[#1F2A2E]">DIP</span>
       </Link>

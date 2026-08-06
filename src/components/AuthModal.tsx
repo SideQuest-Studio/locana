@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Mail, Lock, Eye, EyeOff, Compass, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
+import { X, Mail, Lock, Eye, EyeOff, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { supabaseConfig } from "@/src/lib/supabase-auth";
 import Image from "next/image";
@@ -112,7 +112,7 @@ export default function AuthModal() {
         <div className="p-7 sm:p-9">
           {/* Brand Header */}
           <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg mb-3">
+            <div className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center shadow-lg mb-3 overflow-hidden">
               <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
             </div>
             <h2
