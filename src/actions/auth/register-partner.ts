@@ -5,10 +5,18 @@ import { createAdminClient } from "@/src/lib/supabase/admin";
 import { failure, success } from "@/src/lib/api/response";
 import { registerPartnerSchema } from "@/src/lib/validations/auth";
 
-export async function registerPartner(raw: unknown) {
-  const parsed = registerPartnerSchema.safeParse(raw);
+export async function registerPartner(formData: FormData) {
+  // Convert FormData to plain object for validation
+  const data = Object.fromEntries(formData.entries());
+  
+  const parsed = registerPartnerSchema.safeParse(data);
   if (!parsed.success) {
     return failure("validation.failed", "Invalid input", parsed.error.flatten().fieldErrors);
+  }
+
+  const file = formData.get("document") as File;
+  if (!file) {
+    return failure("validation.failed", "Document is required.");
   }
 
   const { fullName, email, password, businessName, businessEmail, businessPhone } = parsed.data;
@@ -77,7 +85,34 @@ export async function registerPartner(raw: unknown) {
       partnerId = newPartnerId;
     }
 
-    // 5. Update profile names and ensure role is partner_owner and partner_id is set
+    // 5. Upload document
+    const fileName = `${partnerId}/${Date.now()}_${file.name}`;
+    const { error: uploadError } = await admin.storage
+      .from("partner-documents")
+      .upload(fileName, file);
+
+    if (uploadError) {
+      console.error("Upload error:", uploadError);
+      return failure("partner.upload_failed", "Could not upload document.");
+    }
+
+    const { data: { publicUrl } } = admin.storage.from("partner-documents").getPublicUrl(fileName);
+
+    // 6. Insert document record
+    const { error: docError } = await admin
+      .from("partner_verification_documents")
+      .insert({
+        partner_id: partnerId,
+        document_url: publicUrl,
+        document_type: file.type,
+      });
+
+    if (docError) {
+      console.error("Doc insert error:", docError);
+      return failure("partner.doc_insert_failed", "Could not record document.");
+    }
+
+    // 7. Update profile
     const [firstName, ...rest] = fullName.trim().split(" ");
     const lastName = rest.join(" ") || firstName;
 

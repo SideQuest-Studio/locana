@@ -6,8 +6,6 @@ import Link from "next/link";
 import { registerPartner } from "@/src/actions/auth/register-partner";
 import { AuthShell } from "@/src/components/auth/auth-shell";
 
-import { createClient } from "@/src/lib/supabase/client";
-
 export function PartnerRegisterForm() {
   const router = useRouter();
   const [form, setForm] = useState({
@@ -19,6 +17,7 @@ export function PartnerRegisterForm() {
     businessPhone: "",
     role: "partner_owner"
   });
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,10 +27,18 @@ export function PartnerRegisterForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!file) {
+      setError("Please upload a verification document.");
+      return;
+    }
     setError(null);
     setLoading(true);
 
-    const result = await registerPartner(form);
+    const formData = new FormData();
+    Object.entries(form).forEach(([key, value]) => formData.append(key, value));
+    formData.append("document", file);
+
+    const result = await registerPartner(formData);
 
     if (!result.success) {
       setError(result.error.message);
@@ -133,6 +140,20 @@ export function PartnerRegisterForm() {
             id="businessPhone"
             value={form.businessPhone}
             onChange={(e) => update("businessPhone", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="document" className="block text-xs font-semibold text-[#1F2A2E] mb-1.5">
+            Verification Document
+          </label>
+          <input
+            id="document"
+            type="file"
+            accept="image/*,.pdf"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            required
             className={inputClass}
           />
         </div>
