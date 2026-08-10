@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approvePartner, rejectPartner } from "@/src/actions/admin/approve-partner";
+import { PartnerDocumentsModal } from "@/src/components/admin/partner-documents-modal";
 import type { Partner, Profile } from "@/src/types/database.types";
+import { createClient } from "@/src/lib/supabase/client";
 
 type PartnerRow = Partner & {
   owner: Pick<Profile, "first_name" | "last_name" | "email"> | null;
@@ -13,11 +15,26 @@ export function PartnerApprovalTable({ partners }: { partners: PartnerRow[] }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
 
-  async function handleApprove(partnerId: string) {
-    setLoadingId(partnerId);
+  async function handleApprove(partner: PartnerRow) {
+    // Check document status before approving
+    const supabase = createClient();
+    const { data: docs } = await supabase
+      .from("partner_verification_documents")
+      .select("status")
+      .eq("partner_id", partner.id);
+
+    const allApproved = docs && docs.length > 0 && docs.every(d => d.status === "approved");
+    
+    if (!allApproved) {
+      setError(`Cannot approve ${partner.business_name}: All verification documents must be approved first.`);
+      return;
+    }
+
+    setLoadingId(partner.id);
     setError(null);
-    const result = await approvePartner({ partnerId });
+    const result = await approvePartner({ partnerId: partner.id });
     if (!result.success) setError(result.error.message);
     else router.refresh();
     setLoadingId(null);
@@ -75,8 +92,15 @@ export function PartnerApprovalTable({ partners }: { partners: PartnerRow[] }) {
                   <div className="flex gap-2">
                     <button
                       type="button"
+                      onClick={() => setSelectedPartnerId(p.id)}
+                      className="px-3 py-1.5 rounded-lg border border-[#F0DFC2] text-[#64716F] text-xs font-semibold hover:bg-gray-50"
+                    >
+                      View Docs
+                    </button>
+                    <button
+                      type="button"
                       disabled={loadingId === p.id}
-                      onClick={() => handleApprove(p.id)}
+                      onClick={() => handleApprove(p)}
                       className="px-3 py-1.5 rounded-lg bg-[#0E7C7B] text-white text-xs font-semibold disabled:opacity-60"
                     >
                       Approve
@@ -96,6 +120,12 @@ export function PartnerApprovalTable({ partners }: { partners: PartnerRow[] }) {
           </tbody>
         </table>
       </div>
+      {selectedPartnerId && (
+        <PartnerDocumentsModal
+          partnerId={selectedPartnerId}
+          onClose={() => setSelectedPartnerId(null)}
+        />
+      )}
     </div>
   );
 }

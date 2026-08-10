@@ -4,6 +4,10 @@ export type StaffRole = "manager" | "front_desk";
 
 export type PartnerStatus = "pending" | "approved" | "rejected" | "suspended";
 
+export type DocumentStatus = "pending" | "approved" | "rejected";
+
+export type RoomStatus = "available" | "occupied" | "maintenance";
+
 export type Profile = {
   id: string;
   email: string;
@@ -30,6 +34,46 @@ export type Partner = {
   commission_rate: number;
   approved_at: string | null;
   approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PartnerVerificationDocument = {
+  id: string;
+  partner_id: string;
+  document_url: string;
+  document_type: string;
+  status: DocumentStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};
+
+export type RoomType = {
+  id: string;
+  property_id: string;
+  name_en: string;
+  name_fil: string | null;
+  description_en: string | null;
+  description_fil: string | null;
+  capacity: number;
+  max_adults: number;
+  max_children: number;
+  base_price: number;
+  total_inventory: number;
+  size_sqm: number | null;
+  bed_configuration: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Room = {
+  id: string;
+  room_type_id: string;
+  room_number: string;
+  floor: string | null;
+  notes: string | null;
+  status: RoomStatus;
   created_at: string;
   updated_at: string;
 };

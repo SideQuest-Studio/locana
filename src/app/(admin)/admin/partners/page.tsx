@@ -10,19 +10,44 @@ export default async function AdminPartnersPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: partners, error } = await supabase
+  // 1. Fetch pending partners
+  const { data: partners, error: partnerError } = await supabase
     .from("partners")
-    .select("*, owner:profiles!partners_owner_id_fkey(first_name, last_name, email)")
+    .select("*")
     .eq("status", "pending")
     .order("created_at", { ascending: true });
 
-  if (error) {
+  if (partnerError) {
     return (
-      <div className="text-sm text-red-600">
-        Could not load partners. Ensure your account has admin access.
+      <div className="text-sm text-red-600 p-4 border border-red-200 rounded-lg bg-red-50">
+        <h2 className="font-bold">Error loading partners:</h2>
+        <p>{partnerError.message}</p>
       </div>
     );
   }
+
+  // 2. Fetch profiles for the partners
+  const ownerIds = (partners ?? []).map((p) => p.owner_id);
+  const { data: profiles, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, email")
+    .in("id", ownerIds);
+
+  if (profileError) {
+    return (
+      <div className="text-sm text-red-600 p-4 border border-red-200 rounded-lg bg-red-50">
+        <h2 className="font-bold">Error loading partner owners:</h2>
+        <p>{profileError.message}</p>
+      </div>
+    );
+  }
+
+  // 3. Merge data
+  const profileMap = new Map(profiles?.map((p) => [p.id, p]));
+  const partnersWithOwners = (partners ?? []).map((partner) => ({
+    ...partner,
+    owner: profileMap.get(partner.owner_id) || null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -31,7 +56,7 @@ export default async function AdminPartnersPage() {
         <p className="text-sm text-[#64716F] mt-1">Review and approve new partner applications</p>
       </div>
       <PartnerApprovalTable
-        partners={(partners ?? []) as (Partner & {
+        partners={partnersWithOwners as (Partner & {
           owner: Pick<Profile, "first_name" | "last_name" | "email"> | null;
         })[]}
       />
