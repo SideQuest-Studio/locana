@@ -5,21 +5,14 @@ import { redirect } from "next/navigation";
 
 export default async function PropertyPage() {
   const profile = await getUserProfile();
-  console.log("PropertyPage: profile", profile);
   if (!profile || !profile.partner_id) redirect("/login");
 
   const supabase = await createClient();
-  // DEBUG: Try fetching everything to see what's visible
-  const { data: allProperties } = await supabase.from("properties").select("*");
-  console.log("PropertyPage: ALL properties", allProperties);
-
-  const { data: property, error } = await supabase
+  const { data: property } = await supabase
     .from("properties")
     .select("*")
     .eq("partner_id", profile.partner_id)
     .maybeSingle();
-
-  console.log("PropertyPage: fetched property", property, "error", error);
 
   return (
     <div className="space-y-6">
