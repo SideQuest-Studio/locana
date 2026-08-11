@@ -24,16 +24,16 @@ export async function registerPartner(formData: FormData) {
   try {
     const admin = createAdminClient();
 
-    // 1. Check if user already exists
+    // 1. Authenticate or create user in Supabase Auth
+    let userId: string;
+
     const { data: existingUsers } = await admin.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find(
       (u) => u.email?.toLowerCase() === email.toLowerCase()
     );
 
-    let userId: string;
-
     if (existingUser) {
-      // 2. Validate password for existing user
+      // Validate password for existing user
       const { data: authData, error: signInError } = await admin.auth.signInWithPassword({
         email,
         password,
@@ -44,7 +44,7 @@ export async function registerPartner(formData: FormData) {
       }
       userId = authData.user.id;
     } else {
-      // 3. Create new user if not exists
+      // Create new user if not exists
       const { data: authData, error: authError } = await admin.auth.admin.createUser({
         email,
         password,
@@ -58,7 +58,42 @@ export async function registerPartner(formData: FormData) {
       userId = authData.user.id;
     }
 
-    // 4. Create partner application via RPC
+    // 2. Ensure the user profile exists in public.profiles BEFORE creating any partner data
+    const [firstName, ...rest] = fullName.trim().split(" ");
+    const lastName = rest.join(" ") || firstName;
+
+    const { error: profileUpsertError } = await admin
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          email: email.toLowerCase(),
+          first_name: firstName,
+          last_name: lastName,
+          role: "partner_owner",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" }
+      );
+
+    if (profileUpsertError) {
+      console.error("Profile creation error:", profileUpsertError);
+      return failure("profile.create_failed", "Could not initialize user profile. Partner application aborted.");
+    }
+
+    // Verify profile exists in public.profiles
+    const { data: profileCheck, error: profileCheckError } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (profileCheckError || !profileCheck) {
+      console.error("Profile check failed:", profileCheckError);
+      return failure("profile.not_found", "User profile could not be verified. Partner application aborted.");
+    }
+
+    // 3. Only after user and profile are verified to exist, create partner application
     const { data: existingPartner } = await admin
       .from("partners")
       .select("id")
@@ -85,7 +120,7 @@ export async function registerPartner(formData: FormData) {
       partnerId = newPartnerId;
     }
 
-    // 5. Upload document
+    // 4. Upload verification document
     const fileName = `${partnerId}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await admin.storage
       .from("partner-documents")
@@ -98,7 +133,7 @@ export async function registerPartner(formData: FormData) {
 
     const { data: { publicUrl } } = admin.storage.from("partner-documents").getPublicUrl(fileName);
 
-    // 6. Insert document record
+    // 5. Insert document record
     const { error: docError } = await admin
       .from("partner_verification_documents")
       .insert({
@@ -112,10 +147,7 @@ export async function registerPartner(formData: FormData) {
       return failure("partner.doc_insert_failed", "Could not record document.");
     }
 
-    // 7. Update profile
-    const [firstName, ...rest] = fullName.trim().split(" ");
-    const lastName = rest.join(" ") || firstName;
-
+    // 6. Finalize profile with partner_id
     const { error: profileError } = await admin
       .from("profiles")
       .update({
@@ -138,4 +170,5 @@ export async function registerPartner(formData: FormData) {
     return failure("auth.unexpected", "Something went wrong. Please try again.");
   }
 }
+
 
