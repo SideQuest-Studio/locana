@@ -92,12 +92,12 @@ export default function FeaturedDestinations({ filterCategory }: FeaturedDestina
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
               <button
-                onClick={() => toggleWishlist(a.id)}
+                onClick={() => toggleWishlist(a.id, a.name)}
                 aria-label="Toggle wishlist"
-                className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                className="absolute top-4 right-4 h-9 w-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors cursor-pointer shadow-xs"
               >
                 <Heart
-                  className={`h-4 w-4 ${isWishlisted(a.id) ? "fill-[#1E88E5] text-[#1E88E5]" : "text-[#1F2A2E]"}`}
+                  className={`h-4 w-4 ${isWishlisted(a.id) ? "fill-[#005CE5] text-[#005CE5]" : "text-[#1F2A2E]"}`}
                 />
               </button>
 
