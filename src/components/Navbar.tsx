@@ -12,12 +12,13 @@ import { useRouter } from "next/navigation";
 
 const LINKS = [
   { href: "/", label: "Home" },
+  { href: "/search", label: "Explore Stays" },
   { href: "/#deals", label: "Deals" },
   { href: "/#guides", label: "Travel Guides" },
   { href: "/#partner", label: "Become a Partner" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ solid = false }: { solid?: boolean }) {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -32,9 +33,11 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const isDarkText = scrolled || solid;
+
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${scrolled
+      className={`fixed top-0 inset-x-0 z-50 transition-all duration-500 ${isDarkText
         ? "bg-[#FFF8EE]/95 backdrop-blur-md shadow-[0_2px_20px_-8px_rgba(31,42,46,0.15)] py-3"
         : "py-5"
         }`}
@@ -45,7 +48,7 @@ export default function Navbar() {
             <Image src={dipLogo} alt="DIP Logo" className="w-full h-full object-cover" />
           </div>
           <span
-            className={`text-2xl font-semibold transition-colors ${scrolled ? "text-[#1F2A2E]" : "text-white"}`}
+            className={`text-2xl font-semibold transition-colors ${isDarkText ? "text-[#1F2A2E]" : "text-white"}`}
             style={{ fontFamily: "var(--font-display)" }}
           >
             DIP
@@ -57,7 +60,7 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`text-sm font-semibold transition-colors ${scrolled
+              className={`text-sm font-semibold transition-colors ${isDarkText
                 ? "text-[#1F2A2E] hover:text-[#1E88E5]"
                 : "text-white/90 hover:text-white"
                 }`}
@@ -70,7 +73,7 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-5">
           <button
             aria-label="Wishlist"
-            className={`relative p-1 transition-colors ${scrolled ? "text-[#1F2A2E] hover:text-[#1E88E5]" : "text-white/90 hover:text-white"}`}
+            className={`relative p-1 transition-colors ${isDarkText ? "text-[#1F2A2E] hover:text-[#1E88E5]" : "text-white/90 hover:text-white"}`}
           >
             <Heart className="h-5 w-5" />
             {wishlist.size > 0 && (
@@ -86,7 +89,7 @@ export default function Navbar() {
                 onClick={() => {
                   router.push("/account");
                 }}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all duration-200 hover:scale-105 ${scrolled
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border transition-all duration-200 hover:scale-105 ${isDarkText
                   ? "bg-[#1E88E5]/10 border-[#1E88E5]/30 text-[#1F2A2E] hover:bg-[#1E88E5]/20"
                   : "bg-white/20 border-white/30 text-white hover:bg-white/30 shadow-sm"
                   }`}
@@ -100,7 +103,7 @@ export default function Navbar() {
 
               <button
                 onClick={() => setUserDropdown(!userDropdown)}
-                className={`p-1 rounded-full transition-colors ${scrolled ? "text-[#1F2A2E] hover:bg-black/5" : "text-white/80 hover:bg-white/10"
+                className={`p-1 rounded-full transition-colors ${isDarkText ? "text-[#1F2A2E] hover:bg-black/5" : "text-white/80 hover:bg-white/10"
                   }`}
                 title="User Options"
               >
@@ -110,7 +113,7 @@ export default function Navbar() {
           ) : (
             <Link
               href="/login"
-              className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${scrolled
+              className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${isDarkText
                 ? "text-[#1F2A2E] hover:text-[#1E88E5]"
                 : "text-white/90 hover:text-white"
                 }`}
@@ -123,7 +126,7 @@ export default function Navbar() {
 
         <button
           onClick={() => setOpen(!open)}
-          className={`lg:hidden p-2 rounded-full ${scrolled ? "text-[#1F2A2E] bg-[#FDECD2]" : "text-white bg-white/15"}`}
+          className={`lg:hidden p-2 rounded-full ${isDarkText ? "text-[#1F2A2E] bg-[#FDECD2]" : "text-white bg-white/15"}`}
           aria-label="Toggle menu"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+import { Providers } from "@/src/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DIP — Explore, Discover, Recover",
+  title: "DIP — Instant Resort & Hotel Booking",
   description:
-    "Book eco-certified nature experiences across the Philippines — El Nido, Batanes, Siargao, and Cebu — with certified local guides and community-first pricing.",
+    "Book instant stays across Quezon Province, Philippines — Lucena, Tayabas, Pagbilao, Lucban, Infanta, and more.",
 };
 
 export default function RootLayout({
@@ -24,7 +25,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-[#FFF8EE] text-[#1F2A2E] antialiased font-sans">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Toaster position="top-right" richColors />
       </body>
     </html>

@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { X, Mail, Lock, Eye, EyeOff, AlertCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
-import { supabaseConfig } from "@/src/lib/supabase-auth";
+import { createClient } from "@/src/lib/supabase/client";
 import Image from "next/image";
-import dipLogo from "@/src/assets/dip.png"
+import dipLogo from "@/src/assets/dip.png";
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuthModal, authMode, setAuthMode } = useAuth();
@@ -49,19 +49,24 @@ export default function AuthModal() {
 
     setLoading(true);
     try {
-      const { error } = await supabaseConfig.auth.signInWithPassword({
-        email,
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
         password,
       });
 
       if (error) {
         setErrorMsg(error.message || "Invalid email or password.");
-      } else {
+        setLoading(false);
+      } else if (data?.session) {
         closeAuthModal();
+        window.location.href = "/auth/redirect";
+      } else {
+        setErrorMsg("Session could not be established.");
+        setLoading(false);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "An unexpected error occurred.");
-    } finally {
       setLoading(false);
     }
   };
@@ -70,10 +75,11 @@ export default function AuthModal() {
     setErrorMsg(null);
     setGoogleLoading(true);
     try {
-      const { error } = await supabaseConfig.auth.signInWithOAuth({
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+          redirectTo: typeof window !== "undefined" ? `${window.location.origin}/auth/redirect` : undefined,
         },
       });
 
@@ -133,20 +139,22 @@ export default function AuthModal() {
             <button
               type="button"
               onClick={() => setAuthMode("login")}
-              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${authMode === "login"
-                ? "bg-white text-[#1F2A2E] shadow-sm"
-                : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
-                }`}
+              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
+                authMode === "login"
+                  ? "bg-white text-[#1F2A2E] shadow-sm"
+                  : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
+              }`}
             >
               Log In
             </button>
             <button
               type="button"
               onClick={() => setAuthMode("signup")}
-              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${authMode === "signup"
-                ? "bg-white text-[#1E88E5] shadow-sm"
-                : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
-                }`}
+              className={`py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
+                authMode === "signup"
+                  ? "bg-white text-[#1E88E5] shadow-sm"
+                  : "text-[#1F2A2E]/60 hover:text-[#1F2A2E]"
+              }`}
             >
               Sign Up
             </button>

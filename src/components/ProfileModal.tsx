@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/src/context/AuthContext";
 import { useWishlist } from "@/src/context/WishlistContext";
-import { supabaseConfig } from "@/src/lib/supabase-auth";
+import { createClient } from "@/src/lib/supabase/client";
 
 export default function ProfileModal() {
   const { user, isProfileModalOpen, closeProfileModal, signOut } = useAuth();
@@ -53,7 +53,8 @@ export default function ProfileModal() {
     setSaveLoading(true);
 
     try {
-      const { error } = await supabaseConfig.auth.updateUser({
+      const supabase = createClient();
+      const { error } = await supabase.auth.updateUser({
         data: { full_name: fullName },
       });
 
