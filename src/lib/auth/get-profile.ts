@@ -1,4 +1,5 @@
 import { createClient } from "@/src/lib/supabase/server";
+import { createAdminClient } from "@/src/lib/supabase/admin";
 import type { Partner, Profile, UserProfile } from "@/src/types/database.types";
 
 export async function getSessionUser() {
@@ -23,50 +24,62 @@ export async function getProfile(): Promise<Profile | null> {
     .eq("id", user.id)
     .single();
 
-  if (error || !data) return null;
-  return data as Profile;
+  if (data) return data as Profile;
+
+  // Auto-heal missing profile for authenticated user
+  try {
+    const admin = createAdminClient();
+    const fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+    const [firstName, ...rest] = fullName ? fullName.trim().split(" ") : [user.email?.split("@")[0] || "Guest"];
+    const lastName = rest.length > 0 ? rest.join(" ") : (firstName === "Guest" ? "User" : firstName);
+    const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+
+    const { data: newProfile } = await admin
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          email: user.email?.toLowerCase() || "",
+          first_name: firstName,
+          last_name: lastName,
+          avatar_url: avatarUrl,
+          role: "customer",
+        },
+        { onConflict: "id" }
+      )
+      .select("*")
+      .single();
+
+    return (newProfile as Profile) || null;
+  } catch (err) {
+    console.error("getProfile: Auto-heal profile error", err);
+    return null;
+  }
 }
 
 export async function getUserProfile(): Promise<UserProfile | null> {
+  const profile = await getProfile();
+  if (!profile) return null;
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    console.log("getUserProfile: No user found");
-    return null;
-  }
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  if (error || !data) {
-    if (error) console.error("getUserProfile: Error fetching profile", error);
-    return null;
-  }
-
   let partner: Partner | null = null;
-  if (data.partner_id) {
+  if (profile.partner_id) {
     const { data: partnerData } = await supabase
       .from("partners")
       .select("*")
-      .eq("id", data.partner_id)
+      .eq("id", profile.partner_id)
       .single();
     if (partnerData) partner = partnerData as Partner;
-  } else if (isPartnerRole(data.role)) {
+  } else if (isPartnerRole(profile.role)) {
     const { data: partnerData } = await supabase
       .from("partners")
       .select("*")
-      .eq("owner_id", user.id)
+      .eq("owner_id", profile.id)
       .single();
     if (partnerData) partner = partnerData as Partner;
   }
 
-  return { ...data, partner } as UserProfile;
+  return { ...profile, partner } as UserProfile;
 }
 
 export function isPartnerRole(role: Profile["role"]) {

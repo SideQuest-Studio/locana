@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { WishlistProvider } from "@/src/context/WishlistContext";
-import { AuthProvider } from "@/src/context/AuthContext";
 import AuthModal from "@/src/components/AuthModal";
 import ProfileModal from "@/src/components/ProfileModal";
 import Navbar from "@/src/components/Navbar";
@@ -30,19 +28,17 @@ export default function Home() {
   };
 
   return (
-    <AuthProvider>
-      <WishlistProvider>
-        <Navbar />
-        <HeroSection />
-        <CategorySection onSelectCategory={handleSelectCategory} />
-        <FeaturedDestinations filterCategory={activeCategory} />
-        <DealsSection />
-        <TravelGuides />
-        <PartnerCTA />
-        <Footer />
-        <AuthModal />
-        <ProfileModal />
-      </WishlistProvider>
-    </AuthProvider>
+    <>
+      <Navbar />
+      <HeroSection />
+      <CategorySection onSelectCategory={handleSelectCategory} />
+      <FeaturedDestinations filterCategory={activeCategory} />
+      <DealsSection />
+      <TravelGuides />
+      <PartnerCTA />
+      <Footer />
+      <AuthModal />
+      <ProfileModal />
+    </>
   );
 }

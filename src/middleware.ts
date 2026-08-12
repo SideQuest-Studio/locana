@@ -27,13 +27,18 @@ export async function middleware(request: NextRequest) {
     return supabaseResponse;
   }
 
+  // If already logged in and visiting login/register, redirect to post-login path
   if (isAuthRoute) {
     if (user) {
-      return createRedirect(new URL("/auth/redirect", request.url), request, supabaseResponse);
+      const redirectUrl = new URL("/auth/redirect", request.url);
+      const next = request.nextUrl.searchParams.get("redirect");
+      if (next) redirectUrl.searchParams.set("next", next);
+      return createRedirect(redirectUrl, request, supabaseResponse);
     }
     return supabaseResponse;
   }
 
+  // Protected route: user must be logged in
   if (!user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
@@ -46,11 +51,14 @@ export async function middleware(request: NextRequest) {
     .eq("id", user.id)
     .single();
 
+  // If profile is not found yet for authenticated user, forward to /auth/redirect for auto-healing
   if (!profile) {
-    return createRedirect(new URL("/login", request.url), request, supabaseResponse);
+    const healUrl = new URL("/auth/redirect", request.url);
+    healUrl.searchParams.set("next", pathname);
+    return createRedirect(healUrl, request, supabaseResponse);
   }
 
-  const role = profile.role as UserRole;
+  const role = (profile.role || "customer") as UserRole;
 
   let partnerStatus: PartnerStatus | null = null;
   if (isPartnerRole(role)) {
@@ -110,5 +118,6 @@ export const config = {
     "/register",
     "/register/:path*",
     "/auth/redirect",
+    "/auth/callback",
   ],
 };
