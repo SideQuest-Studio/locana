@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateProperty } from "@/src/actions/partner/update-property";
+import { toast } from "sonner";
 
 const propertySchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -19,7 +20,6 @@ type PropertyInput = z.infer<typeof propertySchema>;
 export function PropertyForm({ initialData, partnerId }: { initialData?: any; partnerId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<PropertyInput>({
     resolver: zodResolver(propertySchema),
@@ -32,30 +32,32 @@ export function PropertyForm({ initialData, partnerId }: { initialData?: any; pa
   });
 
   async function onSubmit(data: PropertyInput) {
-    console.log("onSubmit triggered with data:", data);
     setLoading(true);
-    setError(null);
-    const result = await updateProperty(partnerId, data);
-    console.log("updateProperty result:", result);
     
-    if (!result.success) {
-      setError(result.error.message);
+    try {
+      const result = await updateProperty(partnerId, data);
+      
+      if (!result.success) {
+        toast.error("Failed to update property", { description: result.error.message });
+        setLoading(false);
+        return;
+      }
+      
+      toast.success("Property updated successfully");
+      router.refresh();
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    } finally {
       setLoading(false);
-      return;
     }
-    
-    router.refresh();
-    setLoading(false);
   }
 
   function onError(errors: any) {
-    console.error("Form validation errors:", errors);
+    toast.error("Please fix the form errors");
   }
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-4">
-      {error && <p className="text-red-500 text-sm font-semibold">{error}</p>}
-      
       <div>
         <label className="block text-sm font-medium">Property Name</label>
         <input {...form.register("name")} className="w-full border rounded-lg p-2" />

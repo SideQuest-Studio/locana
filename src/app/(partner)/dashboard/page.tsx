@@ -1,34 +1,53 @@
 import { getUserProfile } from "@/src/lib/auth/get-profile";
 import { redirect } from "next/navigation";
+import { Building2, ClipboardList, TrendingUp, AlertCircle } from "lucide-react";
 
 export default async function PartnerDashboardPage() {
   const profile = await getUserProfile();
   if (!profile) redirect("/login");
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#1F2A2E]">Partner overview</h1>
-        <p className="text-sm text-[#64716F] mt-1">
-          {profile.partner?.business_name ?? "Your property"}
-        </p>
-      </div>
+  // Mock data for visualization
+  const stats = [
+    { label: "Total Bookings", value: "0", icon: ClipboardList, color: "text-blue-600" },
+    { label: "Active Revenue", value: "₱0", icon: TrendingUp, color: "text-emerald-600" },
+    { label: "Property Status", value: profile.partner?.status ?? "Pending", icon: Building2, color: "text-amber-600" },
+  ];
 
-      <div className="grid sm:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-[#F0DFC2] bg-white p-5">
-          <p className="text-xs font-semibold text-[#64716F] uppercase">Status</p>
-          <p className="text-lg font-bold text-[#0E7C7B] mt-1 capitalize">
-            {profile.partner?.status ?? "—"}
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[#1F2A2E]">Dashboard</h1>
+          <p className="text-[#64716F] mt-1">
+            Welcome back, {profile.partner?.business_name ?? "Partner"}
           </p>
         </div>
-        <div className="rounded-2xl border border-[#F0DFC2] bg-white p-5">
-          <p className="text-xs font-semibold text-[#64716F] uppercase">Bookings</p>
-          <p className="text-lg font-bold text-[#1F2A2E] mt-1">0</p>
-        </div>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-[#F0DFC2] bg-white/60 p-8 text-center text-sm text-[#64716F]">
-        Property management tools will appear here as you set up your listing.
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {stats.map((stat) => (
+          <div key={stat.label} className="bg-white p-6 rounded-xl border border-[#E6E2DA] shadow-sm flex items-center gap-4">
+            <div className={`p-3 rounded-lg bg-gray-50 ${stat.color}`}>
+              <stat.icon className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-[#64716F]">{stat.label}</p>
+              <p className="text-2xl font-bold text-[#1F2A2E]">{stat.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white p-6 rounded-xl border border-[#E6E2DA] shadow-sm">
+        <div className="flex items-center gap-2 mb-4 text-[#1F2A2E]">
+            <AlertCircle className="h-5 w-5" />
+            <h2 className="font-semibold text-lg">Quick Actions</h2>
+        </div>
+        <div className="text-sm text-[#64716F] border-t border-gray-100 pt-4">
+            {profile.partner?.status === 'pending' 
+                ? "Your property is currently under review. Ensure all verification documents are submitted." 
+                : "Your property is live. Monitor your bookings and availability."}
+        </div>
       </div>
     </div>
   );
