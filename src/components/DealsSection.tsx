@@ -42,12 +42,12 @@ export default function DealsSection() {
                   {deal.dealDiscountPercent}% off
                 </span>
                 <button
-                  onClick={() => toggleWishlist(deal.id)}
+                  onClick={() => toggleWishlist(deal.id, deal.name)}
                   aria-label="Toggle wishlist"
-                  className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors"
+                  className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors cursor-pointer shadow-xs"
                 >
                   <Heart
-                    className={`h-4 w-4 ${isWishlisted(deal.id) ? "fill-[#1E88E5] text-[#1E88E5]" : "text-[#1F2A2E]"}`}
+                    className={`h-4 w-4 ${isWishlisted(deal.id) ? "fill-[#005CE5] text-[#005CE5]" : "text-[#1F2A2E]"}`}
                   />
                 </button>
               </div>

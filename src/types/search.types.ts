@@ -44,6 +44,16 @@ export interface SearchResponse {
   popular: SearchResultItem[];
 }
 
+export interface GuestsBreakdown {
+  adults: number;
+  children: number;
+  infants: number;
+  rooms: number;
+  pets: boolean;
+}
+
+export type SearchActivePopover = "destination" | "checkIn" | "checkOut" | "guests" | null;
+
 export interface SearchFilterState {
   q: string;
   checkIn: string;
@@ -57,3 +67,4 @@ export interface SearchFilterState {
   minRating: number;
   sortBy: "recommended" | "price_asc" | "price_desc" | "rating" | "popular";
 }
+

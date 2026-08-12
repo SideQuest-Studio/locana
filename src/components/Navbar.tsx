@@ -72,12 +72,13 @@ export default function Navbar({ solid = false }: { solid?: boolean }) {
 
         <div className="hidden lg:flex items-center gap-5">
           <button
+            onClick={() => router.push("/account/wishlist")}
             aria-label="Wishlist"
-            className={`relative p-1 transition-colors ${isDarkText ? "text-[#1F2A2E] hover:text-[#1E88E5]" : "text-white/90 hover:text-white"}`}
+            className={`relative p-1 transition-colors cursor-pointer ${isDarkText ? "text-[#1F2A2E] hover:text-[#005CE5]" : "text-white/90 hover:text-white"}`}
           >
             <Heart className="h-5 w-5" />
             {wishlist.size > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-[#1E88E5] text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-[#005CE5] text-white text-[10px] font-bold flex items-center justify-center">
                 {wishlist.size}
               </span>
             )}
@@ -182,8 +183,14 @@ export default function Navbar({ solid = false }: { solid?: boolean }) {
               </button>
             )}
 
-            <button className="flex items-center gap-1.5 text-sm font-semibold text-[#1F2A2E]">
-              <Heart className="h-4 w-4" /> {wishlist.size > 0 ? wishlist.size : ""}
+            <button
+              onClick={() => {
+                setOpen(false);
+                router.push("/account/wishlist");
+              }}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#1F2A2E] cursor-pointer"
+            >
+              <Heart className="h-4 w-4 text-[#005CE5]" /> {wishlist.size > 0 ? `${wishlist.size} saved` : "Wishlist"}
             </button>
           </div>
           <div className="mt-4">
