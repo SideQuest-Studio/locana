@@ -15,9 +15,13 @@ export default async function PropertyPage() {
     .maybeSingle();
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#1F2A2E]">Property Details</h1>
-      <div className="rounded-2xl border border-[#F0DFC2] bg-white p-6">
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Property Details</h1>
+        <p className="text-gray-600 text-sm mt-1">Manage your property information and listing details.</p>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
         <PropertyForm initialData={property} partnerId={profile.partner_id} />
       </div>
     </div>
