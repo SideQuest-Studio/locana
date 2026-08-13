@@ -4,18 +4,8 @@ import {
   canAccessPartnerNavItem,
   canAccessPartnerDashboard,
 } from "@/src/lib/auth/get-profile";
-import { DashboardShell } from "@/src/components/layout/dashboard-shell";
-
-const ALL_NAV: { href: string; label: string; id: Parameters<typeof canAccessPartnerNavItem>[1] }[] = [
-  { href: "/dashboard", label: "Overview", id: "bookings" },
-  { href: "/dashboard/property", label: "Property", id: "property" },
-  { href: "/dashboard/rooms", label: "Rooms", id: "rooms" },
-  { href: "/dashboard/availability", label: "Availability", id: "availability" },
-  { href: "/dashboard/rates", label: "Rates", id: "rates" },
-  { href: "/dashboard/bookings", label: "Bookings", id: "bookings" },
-  { href: "/dashboard/staff", label: "Staff", id: "staff" },
-  { href: "/dashboard/verification", label: "Verification", id: "verification" },
-];
+import { PartnerHeader } from "@/src/components/partner/dashboard/PartnerHeader";
+import { PartnerSidebar } from "@/src/components/partner/dashboard/PartnerSidebar";
 
 export default async function PartnerDashboardLayout({
   children,
@@ -29,14 +19,31 @@ export default async function PartnerDashboardLayout({
     redirect("/account?pending=partner");
   }
 
-  const nav = ALL_NAV.filter((item) => {
-    if (item.href === "/dashboard") return true;
-    return canAccessPartnerNavItem(profile, item.id);
-  }).map(({ href, label }) => ({ href, label }));
+  const partnerName = `${profile.first_name} ${profile.last_name}`.trim();
+  const avatarInitial = profile.first_name?.[0]?.toUpperCase() ?? "P";
 
   return (
-    <DashboardShell nav={nav} title="Partner portal">
-      {children}
-    </DashboardShell>
+    <div className="h-screen flex flex-col bg-[#FFF8EE]">
+      {/* ── Top header ── */}
+      <PartnerHeader
+        partnerName={partnerName}
+        avatarInitial={avatarInitial}
+      />
+
+      {/* ── Body: sidebar + main content ── */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar — hidden on mobile, visible md+ */}
+        <div className="hidden md:block shrink-0 h-full w-64 bg-white border-r border-[#F0DFC2]">
+          <PartnerSidebar />
+        </div>
+
+        {/* Main content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {children}
+          </div>
+        </main>
+      </div>
+    </div>
   );
 }
