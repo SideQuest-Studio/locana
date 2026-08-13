@@ -28,7 +28,7 @@ export interface StatCardData {
 
 // ─── Icon registry ─────────────────────────────────────────────────────────
 
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+const ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   Store,
   CalendarIcon,
   Luggage,

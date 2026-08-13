@@ -26,7 +26,12 @@ export default async function PartnerDashboardPage() {
   
   const { data: rawStats, error } = await supabase
     .rpc("get_partner_dashboard_stats", { p_partner_id: profile.partner_id })
-    .single();
+    .single<{
+      total_listings: number;
+      today_bookings: number;
+      pending_checkins: number;
+      avg_rating: number;
+    }>();
 
   if (error) {
     console.error("Error fetching stats:", error);
