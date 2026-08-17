@@ -1,14 +1,30 @@
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#1F2A2E]">{title}</h1>
-      <div className="rounded-2xl border border-dashed border-[#F0DFC2] bg-white/60 p-12 text-center text-sm text-[#64716F]">
-        Coming soon — {title.toLowerCase()} management.
-      </div>
-    </div>
-  );
-}
+import { redirect } from "next/navigation";
+import { getUserProfile } from "@/src/lib/auth/get-profile";
+import { createClient } from "@/src/lib/supabase/server";
+import { VerificationCenter } from "@/src/components/partner/verification/verification-center";
+import type { PartnerVerificationDocument } from "@/src/types/database.types";
 
-export default function VerificationPage() {
-  return <Placeholder title="Verification" />;
+export default async function VerificationPage() {
+  const profile = await getUserProfile();
+  if (!profile) redirect("/login");
+  if (!profile.partner) redirect("/account?pending=partner");
+
+  const supabase = await createClient();
+
+  const { data: documents, error } = await supabase
+    .from("partner_verification_documents")
+    .select("*")
+    .eq("partner_id", profile.partner.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching partner verification documents:", error);
+  }
+
+  return (
+    <VerificationCenter
+      partner={profile.partner}
+      documents={(documents as PartnerVerificationDocument[]) || []}
+    />
+  );
 }

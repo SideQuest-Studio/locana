@@ -1,63 +1,60 @@
-import { createClient } from "@/src/lib/supabase/server";
-import { getUserProfile } from "@/src/lib/auth/get-profile";
 import { redirect } from "next/navigation";
-import { RoomTypeForm } from "@/src/components/partner/room-type-form";
-import { AddRoomForm } from "@/src/components/partner/add-room-form";
+import { getUserProfile } from "@/src/lib/auth/get-profile";
+import { createClient } from "@/src/lib/supabase/server";
+import {
+  RoomsManagement,
+  type RoomTypeWithUnits,
+} from "@/src/components/partner/rooms/rooms-management";
+import Link from "next/link";
+import { Building2 } from "lucide-react";
 
 export default async function RoomsPage() {
   const profile = await getUserProfile();
-  if (!profile || !profile.partner_id) redirect("/login");
+  if (!profile) redirect("/login");
+  if (!profile.partner) redirect("/account?pending=partner");
 
   const supabase = await createClient();
+
+  // 1. Fetch Property record for this partner
   const { data: property } = await supabase
     .from("properties")
-    .select("id")
-    .eq("partner_id", profile.partner_id)
-    .single();
+    .select("id, name")
+    .eq("partner_id", profile.partner.id)
+    .maybeSingle();
 
-  if (!property) return <div className="text-gray-600">Property not set up yet.</div>;
+  if (!property) {
+    return (
+      <div className="rounded-2xl border-2 border-dashed border-[#F0DFC2] bg-white p-12 text-center shadow-sm">
+        <Building2 className="w-12 h-12 text-[#64716F]/40 mx-auto mb-3" />
+        <h2 className="text-lg font-bold text-[#1F2A2E]">Property profile required first</h2>
+        <p className="text-xs text-[#64716F] mt-1 max-w-sm mx-auto">
+          Please set up your property profile (name, municipality, address) before configuring room types.
+        </p>
+        <Link
+          href="/dashboard/property"
+          className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1E88E5] text-white text-xs font-semibold hover:bg-[#1976D2]"
+        >
+          Go to Property Setup
+        </Link>
+      </div>
+    );
+  }
 
-  // Fetch room types AND their associated rooms
-  const { data: roomTypes } = await supabase
+  // 2. Fetch Room Types and nested individual units
+  const { data: roomTypes, error } = await supabase
     .from("room_types")
     .select("*, rooms(*)")
-    .eq("property_id", property.id);
+    .eq("property_id", property.id)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error loading room types:", error);
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Room Management</h1>
-        <p className="text-gray-600 text-sm mt-1">Configure your room types and manage individual units.</p>
-      </div>
-      
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-        <h2 className="font-semibold text-lg text-gray-900 mb-4">Add New Room Type</h2>
-        <RoomTypeForm propertyId={property.id} />
-      </div>
-      
-      <div className="grid gap-6">
-        {roomTypes?.map((rt) => (
-          <div key={rt.id} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <h3 className="font-bold text-lg text-gray-900">{rt.name_en}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-                Base Price: <span className="font-medium text-gray-900">₱{rt.base_price}</span> | 
-                Capacity: <span className="font-medium text-gray-900">{rt.capacity} guests</span>
-            </p>
-            
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h4 className="font-medium text-sm text-gray-700 mb-3">Individual Units:</h4>
-              <div className="flex gap-2 flex-wrap mb-4">
-                {rt.rooms?.length > 0 ? rt.rooms?.map((r: any) => (
-                  <span key={r.id} className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm font-medium">
-                    {r.room_number}
-                  </span>
-                )) : <span className="text-sm text-gray-400 italic">No units added yet</span>}
-              </div>
-              <AddRoomForm roomTypeId={rt.id} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <RoomsManagement
+      propertyId={property.id}
+      roomTypes={(roomTypes as RoomTypeWithUnits[]) || []}
+    />
   );
 }
