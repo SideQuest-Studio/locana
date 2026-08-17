@@ -5,8 +5,10 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
+  BedDouble,
   BookOpen,
   CalendarDays,
+  ShieldCheck,
   Star,
   BarChart3,
   User,
@@ -18,14 +20,16 @@ import {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { href: "/dashboard",              label: "Dashboard", icon: LayoutDashboard, exact: true  },
-  { href: "/dashboard/property",     label: "Listings",  icon: Building2,       exact: false },
-  { href: "/dashboard/bookings",     label: "Bookings",  icon: BookOpen,        exact: false },
-  { href: "/dashboard/availability", label: "Calendar",  icon: CalendarDays,    exact: false },
-  { href: "#reviews",                label: "Reviews",   icon: Star,            exact: false },
-  { href: "#analytics",              label: "Analytics", icon: BarChart3,       exact: false },
-  { href: "/account",                label: "Profile",   icon: User,            exact: false },
-  { href: "#settings",               label: "Settings",  icon: Settings,        exact: false },
+  { href: "/dashboard",              label: "Dashboard",     icon: LayoutDashboard, exact: true  },
+  { href: "/dashboard/property",     label: "Property Info", icon: Building2,       exact: false },
+  { href: "/dashboard/rooms",        label: "Rooms & Units", icon: BedDouble,       exact: false },
+  { href: "/dashboard/bookings",     label: "Bookings",      icon: BookOpen,        exact: false },
+  { href: "/dashboard/availability", label: "Calendar",      icon: CalendarDays,    exact: false },
+  { href: "/dashboard/verification", label: "Verification",  icon: ShieldCheck,     exact: false },
+  { href: "#reviews",                label: "Reviews",       icon: Star,            exact: false },
+  { href: "#analytics",              label: "Analytics",     icon: BarChart3,       exact: false },
+  { href: "/account",                label: "Profile",       icon: User,            exact: false },
+  { href: "#settings",               label: "Settings",      icon: Settings,        exact: false },
 ];
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
