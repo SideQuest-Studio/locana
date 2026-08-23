@@ -353,7 +353,7 @@ export function PropertyManagement({
                   <option value="">Select Municipality</option>
                   {areas.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({a.province})
+                      {a.name_en} ({a.province})
                     </option>
                   ))}
                 </select>

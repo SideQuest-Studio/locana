@@ -4,10 +4,12 @@ export type PropertyStatus = "draft" | "pending_review" | "published" | "suspend
 
 export type Area = {
   id: string;
-  name: string;
+  name_en: string;
+  name_fil: string;
   slug: string;
   province: string;
-  is_active: boolean;
+  description?: string | null;
+  sort_order?: number;
 };
 
 export type AmenityCategory = {

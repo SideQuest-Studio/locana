@@ -27,20 +27,20 @@ ALTER TABLE public.property_images ALTER COLUMN id SET DEFAULT gen_random_uuid()
 ALTER TABLE public.properties ALTER COLUMN id SET DEFAULT gen_random_uuid();
 
 -- Seed Quezon Province launch areas
-INSERT INTO public.areas (name, slug, province, is_active)
+INSERT INTO public.areas (name_en, name_fil, slug, province, sort_order)
 VALUES
-  ('Lucena City', 'lucena-city', 'Quezon', true),
-  ('Tayabas City', 'tayabas-city', 'Quezon', true),
-  ('Pagbilao', 'pagbilao', 'Quezon', true),
-  ('Lucban', 'lucban', 'Quezon', true),
-  ('Infanta', 'infanta', 'Quezon', true),
-  ('Sariaya', 'sariaya', 'Quezon', true),
-  ('Real', 'real', 'Quezon', true),
-  ('Candelaria', 'candelaria', 'Quezon', true),
-  ('Mauban', 'mauban', 'Quezon', true),
-  ('Tiaong', 'tiaong', 'Quezon', true),
-  ('Dolores', 'dolores', 'Quezon', true),
-  ('Sampaloc', 'sampaloc', 'Quezon', true)
+  ('Lucena City', 'Lungsod ng Lucena', 'lucena-city', 'Quezon', 1),
+  ('Tayabas City', 'Lungsod ng Tayabas', 'tayabas-city', 'Quezon', 2),
+  ('Pagbilao', 'Pagbilao', 'pagbilao', 'Quezon', 3),
+  ('Lucban', 'Lucban', 'lucban', 'Quezon', 4),
+  ('Infanta', 'Infanta', 'infanta', 'Quezon', 5),
+  ('Sariaya', 'Sariaya', 'sariaya', 'Quezon', 6),
+  ('Real', 'Real', 'real', 'Quezon', 7),
+  ('Candelaria', 'Candelaria', 'candelaria', 'Quezon', 8),
+  ('Mauban', 'Mauban', 'mauban', 'Quezon', 9),
+  ('Tiaong', 'Tiaong', 'tiaong', 'Quezon', 10),
+  ('Dolores', 'Dolores', 'dolores', 'Quezon', 11),
+  ('Sampaloc', 'Sampaloc', 'sampaloc', 'Quezon', 12)
 ON CONFLICT (slug) DO NOTHING;
 
 -- Seed Amenity Categories

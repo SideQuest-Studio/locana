@@ -31,8 +31,7 @@ export default async function PropertyPage() {
   const { data: rawAreas } = await supabase
     .from("areas")
     .select("*")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+    .order("sort_order", { ascending: true });
 
   const areas: Area[] = (rawAreas as Area[]) || [];
 
