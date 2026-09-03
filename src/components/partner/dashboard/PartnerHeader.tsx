@@ -51,12 +51,17 @@ export function PartnerHeader({
           <div className="w-8 h-8 rounded-full bg-[#1E88E5] flex items-center justify-center text-white text-xs font-bold">
             D
           </div>
-          <span
-            className="text-base font-bold text-[#1F2A2E] hidden sm:inline"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            DIP
-          </span>
+          <div className="hidden sm:flex flex-col">
+            <span
+              className="text-base font-bold text-[#1F2A2E] leading-tight"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              DIP
+            </span>
+            <span className="text-[10px] text-[#64716F] leading-tight">
+              Discover. Book. Experience.
+            </span>
+          </div>
         </Link>
 
         {/* ── Search bar (desktop) ── */}
