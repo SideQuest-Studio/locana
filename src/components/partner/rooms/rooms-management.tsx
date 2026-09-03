@@ -799,6 +799,39 @@ export function RoomsManagement({ propertyId, roomTypes }: RoomsManagementProps)
                 />
               </div>
 
+              {/* Bilingual Descriptions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#1F2A2E] mb-1">
+                    Description (EN)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Describe room features, view, and furnishings in English..."
+                    value={typeForm.description_en || ""}
+                    onChange={(e) =>
+                      setTypeForm({ ...typeForm, description_en: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#F0DFC2] p-2.5 text-xs focus:border-[#1E88E5] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#1F2A2E] mb-1">
+                    Description (FIL)
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Ilarawan ang mga gamit, tanawin, at pasilidad sa kuwarto sa Filipino..."
+                    value={typeForm.description_fil || ""}
+                    onChange={(e) =>
+                      setTypeForm({ ...typeForm, description_fil: e.target.value })
+                    }
+                    className="w-full rounded-xl border border-[#F0DFC2] p-2.5 text-xs focus:border-[#1E88E5] focus:outline-none"
+                  />
+                </div>
+              </div>
+
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button
                   type="button"

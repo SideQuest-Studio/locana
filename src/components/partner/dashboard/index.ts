@@ -2,6 +2,17 @@
 export { StatusBadge } from "./StatusBadge";
 export type { BookingStatus } from "./StatusBadge";
 
+// Bookings page components
+export {
+  BookingsMetricCards,
+  BookingsMetricCardsSkeleton,
+  BookingsToolbar,
+  BookingsDataTable,
+  BookingsDataTableSkeleton,
+  BookingsPagination,
+} from "../bookings";
+export type { BookingsFilters } from "../bookings";
+
 export { StatCard, StatCardSkeleton } from "./StatCard";
 export type { StatCardData } from "./StatCard";
 

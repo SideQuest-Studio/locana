@@ -244,6 +244,8 @@ amenity_categories               (lookup table for amenities.category_id — Gen
 
 **i18n column pattern:** Every customer-facing name/description field uses paired `_en`/`_fil` columns (e.g. `room_types.name_en` / `name_fil`, `packages.description_en` / `description_fil`). Slugs (`areas.slug`, `properties.slug`, `tags.slug`, `amenities.slug`) are not translated. Do not introduce a third pattern (e.g. a JSON i18n blob) without updating this section.
 
+**Bilingual Form UI Standard:** Always render paired bilingual inputs (`_en` and `_fil`) directly as two distinct, always-visible fields (e.g., `Name (EN)` and `Name (FIL)`, `Description (EN)` and `Description (FIL)`) side-by-side or stacked. Never hide the Filipino field behind tabs, collapsibles, or dropdown switchers.
+
 ---
 
 ### 5.4 Booking State Machine
