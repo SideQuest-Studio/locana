@@ -5,9 +5,11 @@ export type BookingStatus =
   | "confirmed"
   | "upcoming"
   | "pending"
+  | "pending_payment"
   | "cancelled"
   | "checked_in"
   | "checked_out"
+  | "completed"
   | "expired"
   | "refunded"
   | "refund_pending"
@@ -19,18 +21,34 @@ const STATUS_CONFIG: Record<
 > = {
   confirmed: {
     label: "Confirmed",
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    dot: "bg-emerald-500",
+    bg: "bg-slate-100",
+    text: "text-slate-600",
+    dot: "bg-slate-400",
   },
-  upcoming: { label: "Upcoming", bg: "bg-blue-50", text: "text-blue-700", dot: "bg-blue-500" },
+  upcoming: {
+    label: "Upcoming",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    dot: "bg-blue-500",
+  },
   pending: {
     label: "Pending",
     bg: "bg-amber-50",
-    text: "text-amber-700",
-    dot: "bg-amber-500",
+    text: "text-amber-600",
+    dot: "bg-amber-400",
   },
-  cancelled: { label: "Cancelled", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
+  pending_payment: {
+    label: "Pending Payment",
+    bg: "bg-amber-50",
+    text: "text-amber-600",
+    dot: "bg-amber-400",
+  },
+  cancelled: {
+    label: "Cancelled",
+    bg: "bg-red-50",
+    text: "text-red-500",
+    dot: "bg-red-400",
+  },
   checked_in: {
     label: "Checked In",
     bg: "bg-teal-50",
@@ -39,9 +57,15 @@ const STATUS_CONFIG: Record<
   },
   checked_out: {
     label: "Checked Out",
-    bg: "bg-slate-100",
-    text: "text-slate-600",
-    dot: "bg-slate-400",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    dot: "bg-emerald-500",
+  },
+  completed: {
+    label: "Completed",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    dot: "bg-emerald-500",
   },
   expired: {
     label: "Expired",
@@ -61,7 +85,12 @@ const STATUS_CONFIG: Record<
     text: "text-orange-700",
     dot: "bg-orange-400",
   },
-  no_show: { label: "No Show", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-400" },
+  no_show: {
+    label: "No Show",
+    bg: "bg-red-50",
+    text: "text-red-600",
+    dot: "bg-red-400",
+  },
 };
 
 interface StatusBadgeProps {

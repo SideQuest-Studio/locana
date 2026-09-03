@@ -12,3 +12,14 @@ export interface Attraction {
   highlights: string[];
   ecoContribution: string;
 }
+
+export type {
+  BookingStatus,
+  PaymentStatus,
+  PaymentMethod,
+  Booking,
+  Payment,
+  BookingStatusHistory,
+  PartnerBookingRow,
+  PartnerBookingsStats,
+} from "./database.types";

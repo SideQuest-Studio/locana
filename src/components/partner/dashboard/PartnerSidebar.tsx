@@ -4,12 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Building2,
-  BedDouble,
-  BookOpen,
+  Store,
+  CalendarCheck,
   CalendarDays,
-  Coins,
-  ShieldCheck,
   Star,
   BarChart3,
   User,
@@ -21,17 +18,14 @@ import {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-  { href: "/dashboard",              label: "Dashboard",     icon: LayoutDashboard, exact: true  },
-  { href: "/dashboard/property",     label: "Property Info", icon: Building2,       exact: false },
-  { href: "/dashboard/rooms",        label: "Rooms & Units", icon: BedDouble,       exact: false },
-  { href: "/dashboard/bookings",     label: "Bookings",      icon: BookOpen,        exact: false },
-  { href: "/dashboard/availability", label: "Calendar",      icon: CalendarDays,    exact: false },
-  { href: "/dashboard/rates",        label: "Rates & Pricing", icon: Coins,          exact: false },
-  { href: "/dashboard/verification", label: "Verification",  icon: ShieldCheck,     exact: false },
-  { href: "#reviews",                label: "Reviews",       icon: Star,            exact: false },
-  { href: "#analytics",              label: "Analytics",     icon: BarChart3,       exact: false },
-  { href: "/account",                label: "Profile",       icon: User,            exact: false },
-  { href: "#settings",               label: "Settings",      icon: Settings,        exact: false },
+  { href: "/dashboard",              label: "Dashboard",  icon: LayoutDashboard, exact: true  },
+  { href: "/dashboard/property",     label: "Listings",   icon: Store,           exact: false },
+  { href: "/dashboard/bookings",     label: "Bookings",   icon: CalendarCheck,   exact: false },
+  { href: "/dashboard/availability", label: "Calendar",   icon: CalendarDays,    exact: false },
+  { href: "#reviews",                label: "Reviews",    icon: Star,            exact: false },
+  { href: "#analytics",              label: "Analytics",  icon: BarChart3,       exact: false },
+  { href: "/account",                label: "Profile",    icon: User,            exact: false },
+  { href: "#settings",               label: "Settings",   icon: Settings,        exact: false },
 ];
 
 // ─── Nav item ─────────────────────────────────────────────────────────────────
@@ -56,12 +50,12 @@ function NavItem({
       href={item.href}
       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
         isActive
-          ? "bg-[#1E88E5] text-white shadow-[0_4px_14px_-4px_rgba(30,136,229,0.45)]"
+          ? "bg-[#1E88E5]/10 text-[#1E88E5] border border-[#1E88E5]/20"
           : "text-[#64716F] hover:bg-[#F0DFC2]/60 hover:text-[#1F2A2E]"
       }`}
     >
       <Icon
-        className={isActive ? "text-white" : "text-[#64716F]"}
+        className={isActive ? "text-[#1E88E5]" : "text-[#64716F]"}
         style={{ width: 18, height: 18, flexShrink: 0 }}
       />
       {item.label}
@@ -73,7 +67,7 @@ function NavItem({
 
 function HelpCenterCard() {
   return (
-    <div className="mt-auto pt-4 border-t border-[#F0DFC2]">
+    <div className="mt-auto pt-4">
       <div className="rounded-2xl border border-[#F0DFC2] bg-[#FDECD2]/50 p-4">
         <div className="flex items-center gap-2.5 mb-3">
           <div className="w-9 h-9 rounded-full border-2 border-[#64716F]/25 flex items-center justify-center bg-white shrink-0">
@@ -102,21 +96,23 @@ export function PartnerSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-full md:w-64 h-full flex-col hidden md:flex shrink-0 p-4 border-r border-[#F0DFC2] bg-white overflow-y-auto">
+    <aside className="w-full md:w-64 h-full flex-col hidden md:flex shrink-0 overflow-y-auto">
       {/* Section label */}
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[#64716F] mb-4 px-1">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[#64716F] mt-5 mb-3 px-5">
         Partner Dashboard
       </p>
 
       {/* Nav links */}
-      <nav className="flex flex-col gap-0.5">
+      <nav className="flex flex-col gap-0.5 px-3">
         {NAV_ITEMS.map((item) => (
           <NavItem key={item.label} item={item} pathname={pathname} />
         ))}
       </nav>
 
       {/* Help card pinned to bottom */}
-      <HelpCenterCard />
+      <div className="px-3">
+        <HelpCenterCard />
+      </div>
     </aside>
   );
 }
