@@ -10,12 +10,11 @@ export default async function AdminPartnersPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // 1. Fetch pending partners
+  // 1. Fetch all partner registrations (pending first, then newest)
   const { data: partners, error: partnerError } = await supabase
     .from("partners")
     .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (partnerError) {
     return (
@@ -26,18 +25,25 @@ export default async function AdminPartnersPage() {
     );
   }
 
-  // 2. Fetch profiles for the partners
+  // 2. Fetch profiles for the partners (include phone for detail modal)
   const ownerIds = (partners ?? []).map((p) => p.owner_id);
-  const { data: profiles, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, first_name, last_name, email")
-    .in("id", ownerIds);
+  let profiles: Pick<Profile, "id" | "first_name" | "last_name" | "email" | "phone_number" | "created_at">[] | null = [];
+  let profileError = null as unknown;
+
+  if (ownerIds.length > 0) {
+    const res = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email, phone_number, created_at")
+      .in("id", ownerIds);
+    profiles = res.data;
+    profileError = res.error;
+  }
 
   if (profileError) {
     return (
       <div className="text-sm text-red-600 p-4 border border-red-200 rounded-lg bg-red-50">
         <h2 className="font-bold">Error loading partner owners:</h2>
-        <p>{profileError.message}</p>
+        <p>{String((profileError as Error)?.message ?? profileError)}</p>
       </div>
     );
   }
@@ -52,13 +58,17 @@ export default async function AdminPartnersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1F2A2E]">Partner approvals</h1>
-        <p className="text-sm text-[#64716F] mt-1">Review and approve new partner applications</p>
+        <h1 className="text-2xl font-bold text-[#1F2A2E]">Partner registrations</h1>
+        <p className="text-sm text-[#64716F] mt-1">
+          Click a registration to view full details, documents and approve or send feedback
+        </p>
       </div>
       <PartnerApprovalTable
-        partners={partnersWithOwners as (Partner & {
-          owner: Pick<Profile, "first_name" | "last_name" | "email"> | null;
-        })[]}
+        partners={
+          partnersWithOwners as (Partner & {
+            owner: Pick<Profile, "first_name" | "last_name" | "email" | "phone_number" | "created_at"> | null;
+          })[]
+        }
       />
     </div>
   );

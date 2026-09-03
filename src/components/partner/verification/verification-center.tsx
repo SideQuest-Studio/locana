@@ -19,8 +19,8 @@ import type { Partner, PartnerVerificationDocument } from "@/src/types/database.
 import {
   uploadVerificationDocument,
   deleteVerificationDocument,
-  DOCUMENT_TYPE_LABELS,
 } from "@/src/actions/partner/verification";
+import { DOCUMENT_TYPE_LABELS } from "@/src/lib/constants/verification";
 
 interface VerificationCenterProps {
   partner: Partner;

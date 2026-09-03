@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/src/lib/supabase/client";
 import type { PartnerVerificationDocument } from "@/src/types/database.types";
-import { DOCUMENT_TYPE_LABELS } from "@/src/actions/partner/verification";
+import { DOCUMENT_TYPE_LABELS } from "@/src/lib/constants/verification";
 import { FileText, ExternalLink, Check, X, Shield, Clock } from "lucide-react";
 
 export function PartnerDocumentsModal({
