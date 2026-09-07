@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight, MoreHorizontal, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { StatusBadge, type BookingStatus } from "@/src/components/partner/dashboard/StatusBadge";
@@ -101,12 +102,13 @@ function ContextMenu({ row }: { row: PartnerBookingRow }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-xl border border-[#F0DFC2] shadow-xl py-1.5 z-50 animate-fadeIn">
-            <button
+            <Link
+              href={`/dashboard/bookings/${row.booking_id}`}
               onClick={() => setOpen(false)}
-              className="w-full text-left px-4 py-2 text-sm text-[#1F2A2E] hover:bg-[#F0DFC2]/50 transition-colors"
+              className="block w-full text-left px-4 py-2 text-sm text-[#1F2A2E] hover:bg-[#F0DFC2]/50 transition-colors"
             >
               View Details
-            </button>
+            </Link>
             <button
               onClick={() => setOpen(false)}
               className="w-full text-left px-4 py-2 text-sm text-[#1F2A2E] hover:bg-[#F0DFC2]/50 transition-colors"
@@ -249,9 +251,12 @@ export function BookingsDataTable({ bookings }: BookingsDataTableProps) {
                 {/* Actions */}
                 <td className="px-5 py-4">
                   <div className="flex items-center justify-center gap-1">
-                    <button className="px-3 py-1.5 rounded-lg border border-[#1E88E5]/30 text-xs font-semibold text-[#1E88E5] hover:bg-[#1E88E5]/10 transition-colors">
+                    <Link
+                      href={`/dashboard/bookings/${row.booking_id}`}
+                      className="px-3 py-1.5 rounded-lg border border-[#1E88E5]/30 text-xs font-semibold text-[#1E88E5] hover:bg-[#1E88E5]/10 transition-colors"
+                    >
                       View Details
-                    </button>
+                    </Link>
                     <ContextMenu row={row} />
                   </div>
                 </td>
@@ -281,9 +286,12 @@ export function BookingsDataTable({ bookings }: BookingsDataTableProps) {
             </div>
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold text-[#1F2A2E]">{formatCurrency(row.total_amount)}</p>
-              <button className="px-3 py-1.5 rounded-lg border border-[#1E88E5]/30 text-xs font-semibold text-[#1E88E5] hover:bg-[#1E88E5]/10 transition-colors">
+              <Link
+                href={`/dashboard/bookings/${row.booking_id}`}
+                className="px-3 py-1.5 rounded-lg border border-[#1E88E5]/30 text-xs font-semibold text-[#1E88E5] hover:bg-[#1E88E5]/10 transition-colors"
+              >
                 View Details
-              </button>
+              </Link>
             </div>
           </div>
         ))}

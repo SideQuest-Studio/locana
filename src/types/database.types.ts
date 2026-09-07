@@ -96,6 +96,18 @@ export type PartnerBookingsStats = {
   cancelled: number;
 };
 
+/** Shape returned by get_partner_booking_detail RPC (jsonb document) */
+export type PartnerBookingDetail = {
+  booking: Booking;
+  guest: Profile | null;
+  room_type: RoomType | null;
+  property: import("./property.types").Property | null;
+  payments: Payment[];
+  assigned_rooms: Room[];
+  available_rooms: Room[];
+  status_history: BookingStatusHistory[];
+};
+
 export type Profile = {
   id: string;
   email: string;
