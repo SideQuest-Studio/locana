@@ -502,14 +502,17 @@ Table package_items {
 
 Table bookings {
   id uuid [pk]
+  reference varchar [not null, unique, note: 'DIP-XXXXXXXX, shown to guest and partner']
   customer_id uuid [not null, ref: > profiles.id]
   room_type_id uuid [not null, ref: > room_types.id]
+  rate_plan_id uuid [ref: > rate_plans.id, note: 'Plan booked; null if the room type has none (ON DELETE SET NULL)']
   promo_code_id uuid [ref: > promo_codes.id]
 
   check_in date [not null]
   check_out date [not null]
   adults_count int [default: 1]
   children_count int [default: 0]
+  special_requests text
 
   subtotal decimal(10,2) [not null]
   discount_amount decimal(10,2) [default: 0.00]

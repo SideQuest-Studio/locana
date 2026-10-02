@@ -25,13 +25,16 @@ export type PaymentMethod = "paymongo_gcash" | "paymongo_card" | "paymongo_grabp
 
 export type Booking = {
   id: string;
+  reference: string;
   customer_id: string;
   room_type_id: string;
+  rate_plan_id: string | null;
   promo_code_id: string | null;
   check_in: string;
   check_out: string;
   adults_count: number;
   children_count: number;
+  special_requests: string | null;
   subtotal: number;
   discount_amount: number;
   total_amount: number;
