@@ -30,11 +30,18 @@ export async function requirePartner(
     return { ok: false, error: failure("auth.unauthorized", "You must be signed in.") };
   }
 
-  const { data: profile } = await supabase
+  // partners has three FKs to profiles (owner_id, approved_by, and profiles.partner_id), so the embed
+  // must name the relationship or PostgREST rejects it as ambiguous (PGRST201).
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, staff_role, partner_id, partner:partners(status)")
+    .select("role, staff_role, partner_id, partner:partners!profiles_partner_id_fkey(status)")
     .eq("id", user.id)
     .single();
+
+  if (profileError) {
+    console.error("requirePartner: profile lookup failed:", profileError);
+    return { ok: false, error: failure("unexpected.error", "We couldn't verify your partner account. Please try again.") };
+  }
 
   const partner = Array.isArray(profile?.partner) ? profile.partner[0] : profile?.partner;
   const isPartnerRole = profile?.role === "partner_owner" || profile?.role === "partner_staff";
