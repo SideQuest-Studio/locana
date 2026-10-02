@@ -28,7 +28,7 @@ pending_payment → confirmed → checked_in → checked_out
                   refund_pending → refunded
 ```
 
-- `pending_payment`: inventory held (`available_count` decremented) for `BOOKING_HOLD_MINUTES` (default 15). Expire via cron/pg_cron, never client-side.
+- `pending_payment`: inventory held for 15 minutes via `hold_expires_at` (counts against rooms left until it lapses). A job only relabels lapsed holds to `expired`; never expire client-side.
 - `confirmed`: set only from a verified `payment.paid` webhook. Never from the client.
 - Every transition writes a `booking_status_history` row (`from_status`, `to_status`, `changed_by`) — append-only, no UPDATE via RLS.
 - Enforce valid transitions **inside the RPC**, not just the UI — an invalid transition throws a DB error.
@@ -38,23 +38,23 @@ pending_payment → confirmed → checked_in → checked_out
 
 Two layers, both required: `room_type_availability(room_type_id, date, available_count)` for quantity, `rooms.status` (`available|occupied|maintenance`) for physical units.
 
+`room_type_availability.available_count` is the partner's allotment (default `total_inventory`), never decremented. Rooms left = allotment − active bookings, computed by `stay_nights()`.
+
 Inside `create_booking()` RPC, always in one transaction:
 ```sql
-SELECT available_count FROM room_type_availability
-WHERE room_type_id = p_room_type_id
-  AND date BETWEEN p_check_in AND p_check_out - 1
-FOR UPDATE;
--- only proceed if available_count >= requested for ALL dates, then decrement
+PERFORM 1 FROM room_types WHERE id = p_room_type_id FOR UPDATE;  -- serialize per room type
+-- re-quote via quote_stay()/stay_nights(); RAISE reason code (SOLD_OUT, MIN_STAY_NOT_MET, ...) if not bookable
+-- insert booking + booking_status_history
 ```
 Use `FOR UPDATE` row locks, not optimistic locking — the double-booking window is real on peak weekends.
 
-Check `pricing_rules.minimum_stay` (not `min_stay`) inside the RPC before proceeding.
+Price per night: `price_override` if set, else `base_price` + top-priority active `pricing_rules.price_modifier` + `rate_plans.price_modifier`. Minimum stay: override → top-priority rule with `minimum_stay` → rate plan → 1.
 
 ## Payments (§5.6)
 
 ```
 BookingForm → Server Action (Zod + promo check) → create_booking() RPC (transaction,
-  FOR UPDATE lock → validate → decrement → insert booking pending_payment →
+  FOR UPDATE lock → re-quote + validate → insert booking pending_payment →
   insert booking_status_history) → PayMongo Payment Intent (downpayment) →
   { bookingId, paymentUrl } → client redirects to PayMongo checkout
 

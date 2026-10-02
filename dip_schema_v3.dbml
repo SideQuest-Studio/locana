@@ -412,7 +412,7 @@ Table room_type_availability {
     (room_type_id, date) [unique]
   }
 
-  Note: 'Decremented transactionally inside create_booking() RPC via SELECT ... FOR UPDATE (§5.5). Highest pricing precedence.'
+  Note: 'available_count = partner allotment for the night (default room_types.total_inventory), never decremented. Rooms left = allotment - active bookings, computed by stay_nights(); create_booking() serializes on room_types FOR UPDATE (§5.5). price_override has highest pricing precedence.'
 }
 
 Table rate_plans {

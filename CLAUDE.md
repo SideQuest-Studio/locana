@@ -42,7 +42,7 @@ Open items agents must not silently decide: full TBD registry in `AGENTS.md` §3
 
 1. **RLS is the security boundary.** Every table with user-scoped data has RLS enabled in the same PR it's created — not a follow-up task.
 2. **All writes go through Server Actions or Route Handlers.** Never mutate Supabase from the browser with the service role key. Anon key is read-only client-side.
-3. **Booking-critical paths are transactional.** Availability lock, decrement, booking insert, and status-history insert happen inside one `create_booking()` RPC using `SELECT ... FOR UPDATE`. Partial success is a bug, not an edge case.
+3. **Booking-critical paths are transactional.** `create_booking()` locks the room type (`SELECT ... FOR UPDATE`), re-quotes from `stay_nights()`, checks rooms left (partner allotment − active bookings), and inserts the booking + status history in one transaction. Partial success is a bug, not an edge case.
 4. **Payments are idempotent.** Every transaction has a unique `transaction_reference`. Duplicate webhook delivery is a no-op, never a double-charge — go through `payment_events` first.
 5. **Never expose raw DB errors to clients.** Map `PostgrestError` codes to i18n keys centrally.
 6. **UUID PKs everywhere**, `gen_random_uuid()`. Timestamps (`created_at`/`updated_at`) on every table.
