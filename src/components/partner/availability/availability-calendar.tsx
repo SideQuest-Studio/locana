@@ -172,6 +172,8 @@ export function AvailabilityCalendar({
           [selectedDateKey]: {
             date: selectedDateKey,
             available_count: availableCount,
+            booked: prev[selectedDateKey]?.booked ?? 0,
+            rooms_left: Math.max(availableCount - (prev[selectedDateKey]?.booked ?? 0), 0),
             price: priceOverride !== null ? priceOverride : basePrice,
             is_override: true,
             price_override: priceOverride,
@@ -206,6 +208,8 @@ export function AvailabilityCalendar({
           [selectedDateKey]: {
             date: selectedDateKey,
             available_count: totalInventory,
+            booked: prev[selectedDateKey]?.booked ?? 0,
+            rooms_left: Math.max(totalInventory - (prev[selectedDateKey]?.booked ?? 0), 0),
             price: basePrice,
             is_override: false,
             price_override: null,
@@ -463,6 +467,8 @@ export function AvailabilityCalendar({
             const isBlocked = record?.is_blocked || (record && record.available_count === 0);
             const isOverride = record?.is_override;
             const availableCount = record ? record.available_count : totalInventory;
+            const booked = record?.booked ?? 0;
+            const roomsLeft = record ? record.rooms_left : totalInventory;
             const displayPrice = record ? record.price : basePrice;
             const minStay = record?.minimum_stay;
 
@@ -490,7 +496,7 @@ export function AvailabilityCalendar({
                     </span>
                   ) : (
                     <span className="text-[10px] font-semibold text-emerald-600">
-                      {availableCount} left
+                      {roomsLeft} left
                     </span>
                   )}
                 </div>
@@ -503,6 +509,11 @@ export function AvailabilityCalendar({
                   >
                     ₱{displayPrice.toLocaleString()}
                   </p>
+                  {booked > 0 && (
+                    <p className="text-[9px] font-medium text-[#64716F]">
+                      {booked} of {availableCount} booked
+                    </p>
+                  )}
                   {minStay && (
                     <p className="text-[9px] font-medium text-[#64716F]">
                       Min {minStay}N

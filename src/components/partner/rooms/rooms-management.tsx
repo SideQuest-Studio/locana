@@ -127,7 +127,7 @@ export function RoomsManagement({ propertyId, roomTypes }: RoomsManagementProps)
 
     startTransition(async () => {
       if (editingType) {
-        const res = await updateRoomType(editingType.id, propertyId, typeForm);
+        const res = await updateRoomType(editingType.id, typeForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {
@@ -150,7 +150,7 @@ export function RoomsManagement({ propertyId, roomTypes }: RoomsManagementProps)
           setIsTypeModalOpen(false);
         }
       } else {
-        const res = await createRoomType(propertyId, typeForm);
+        const res = await createRoomType(typeForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {
@@ -184,7 +184,7 @@ export function RoomsManagement({ propertyId, roomTypes }: RoomsManagementProps)
     if (!confirm("Are you sure you want to delete this room type and all its units?")) return;
 
     startTransition(async () => {
-      const res = await deleteRoomType(roomTypeId, propertyId);
+      const res = await deleteRoomType(roomTypeId);
       if (!res.success) {
         alert(res.error.message);
       } else {

@@ -281,7 +281,7 @@ export function RatesManagement({
 
     startTransition(async () => {
       if (editingRule) {
-        const res = await updatePricingRule(editingRule.id, propertyId, ruleForm);
+        const res = await updatePricingRule(editingRule.id, ruleForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {
@@ -302,7 +302,7 @@ export function RatesManagement({
           setIsRuleModalOpen(false);
         }
       } else {
-        const res = await createPricingRule(propertyId, ruleForm);
+        const res = await createPricingRule(ruleForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {

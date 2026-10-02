@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/src/lib/supabase/server";
-import { createAdminClient } from "@/src/lib/supabase/admin";
 import { failure, success, type ActionResult } from "@/src/lib/api/response";
+import { dbFailure } from "@/src/lib/api/db-errors";
+import { requirePartner } from "@/src/lib/auth/partner-guard";
 import { z } from "zod";
 import type { RoomStatus } from "@/src/types/database.types";
 
@@ -23,69 +23,80 @@ const roomTypeSchema = z.object({
 
 export type RoomTypeInput = z.infer<typeof roomTypeSchema>;
 
+const roomStatusSchema = z.enum(["available", "occupied", "maintenance"]);
+
 const roomUnitSchema = z.object({
   room_number: z.string().min(1, "Unit identifier / room number is required"),
   floor: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  status: z.enum(["available", "occupied", "maintenance"]).default("available"),
+  status: roomStatusSchema.default("available"),
 });
 
 export type RoomUnitInput = z.infer<typeof roomUnitSchema>;
 
-export async function createRoomType(
-  propertyId: string,
-  data: RoomTypeInput
-): Promise<ActionResult<{ id: string }>> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+const batchSchema = z.object({
+  roomTypeId: z.string().uuid(),
+  prefix: z.string().max(20),
+  startNumber: z.number().int().min(0),
+  count: z.number().int().min(1, "Batch count must be between 1 and 50.").max(50, "Batch count must be between 1 and 50."),
+  floor: z.string().max(20).optional(),
+});
 
-    if (authError || !user) {
-      return failure("auth.unauthorized", "You must be logged in.");
+const idSchema = z.string().uuid();
+
+function invalidRequest() {
+  return failure("validation.failed", "Invalid request.");
+}
+
+function revalidateRoomPages() {
+  revalidatePath("/dashboard/rooms");
+  revalidatePath("/dashboard/availability");
+  revalidatePath("/search");
+}
+
+function roomTypeRow(data: RoomTypeInput) {
+  return {
+    name_en: data.name_en,
+    name_fil: data.name_fil || data.name_en,
+    description_en: data.description_en || null,
+    description_fil: data.description_fil || null,
+    capacity: data.capacity,
+    max_adults: data.max_adults,
+    max_children: data.max_children,
+    base_price: data.base_price,
+    total_inventory: data.total_inventory,
+    size_sqm: data.size_sqm || null,
+    bed_configuration: data.bed_configuration || null,
+  };
+}
+
+export async function createRoomType(data: RoomTypeInput): Promise<ActionResult<{ id: string }>> {
+  try {
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
+
+    if (!ctx.propertyId) {
+      return failure("property.missing", "Create your property profile first.");
     }
 
     const parsed = roomTypeSchema.safeParse(data);
     if (!parsed.success) {
-      return failure(
-        "validation.failed",
-        "Please fix form validation errors.",
-        parsed.error.flatten().fieldErrors
-      );
+      return failure("validation.failed", "Please fix form validation errors.", parsed.error.flatten().fieldErrors);
     }
 
-    const admin = createAdminClient();
-
-    const { data: newRoomType, error: insertError } = await admin
+    const { data: newRoomType, error } = await supabase
       .from("room_types")
-      .insert({
-        property_id: propertyId,
-        name_en: parsed.data.name_en,
-        name_fil: parsed.data.name_fil || parsed.data.name_en,
-        description_en: parsed.data.description_en || null,
-        description_fil: parsed.data.description_fil || null,
-        capacity: parsed.data.capacity,
-        max_adults: parsed.data.max_adults,
-        max_children: parsed.data.max_children,
-        base_price: parsed.data.base_price,
-        total_inventory: parsed.data.total_inventory,
-        size_sqm: parsed.data.size_sqm || null,
-        bed_configuration: parsed.data.bed_configuration || null,
-      })
+      .insert({ property_id: ctx.propertyId, ...roomTypeRow(parsed.data) })
       .select("id")
       .single();
 
-    if (insertError || !newRoomType) {
-      console.error("Create room type error:", insertError);
-      return failure("db.insert_failed", "Failed to create room type: " + (insertError?.message || ""));
+    if (error || !newRoomType) {
+      console.error("Create room type error:", error);
+      return dbFailure(error, "room_type.create_failed");
     }
 
-    revalidatePath("/dashboard/rooms");
-    revalidatePath("/dashboard/availability");
-    revalidatePath("/search");
-
+    revalidateRoomPages();
     return success({ id: newRoomType.id });
   } catch (err) {
     console.error("Unexpected error in createRoomType:", err);
@@ -93,56 +104,35 @@ export async function createRoomType(
   }
 }
 
-export async function updateRoomType(
-  roomTypeId: string,
-  propertyId: string,
-  data: RoomTypeInput
-): Promise<ActionResult<void>> {
+export async function updateRoomType(roomTypeId: string, data: RoomTypeInput): Promise<ActionResult<void>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
 
-    if (authError || !user) {
-      return failure("auth.unauthorized", "You must be logged in.");
-    }
+    if (!idSchema.safeParse(roomTypeId).success || !ctx.propertyId) return invalidRequest();
 
     const parsed = roomTypeSchema.safeParse(data);
     if (!parsed.success) {
-      return failure("validation.failed", "Please fix form validation errors.");
+      return failure("validation.failed", "Please fix form validation errors.", parsed.error.flatten().fieldErrors);
     }
 
-    const admin = createAdminClient();
-
-    const { error: updateError } = await admin
+    const { data: updated, error } = await supabase
       .from("room_types")
-      .update({
-        name_en: parsed.data.name_en,
-        name_fil: parsed.data.name_fil || parsed.data.name_en,
-        description_en: parsed.data.description_en || null,
-        description_fil: parsed.data.description_fil || null,
-        capacity: parsed.data.capacity,
-        max_adults: parsed.data.max_adults,
-        max_children: parsed.data.max_children,
-        base_price: parsed.data.base_price,
-        total_inventory: parsed.data.total_inventory,
-        size_sqm: parsed.data.size_sqm || null,
-        bed_configuration: parsed.data.bed_configuration || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ ...roomTypeRow(parsed.data), updated_at: new Date().toISOString() })
       .eq("id", roomTypeId)
-      .eq("property_id", propertyId);
+      .eq("property_id", ctx.propertyId)
+      .select("id");
 
-    if (updateError) {
-      return failure("db.update_failed", "Failed to update room type: " + updateError.message);
+    if (error) {
+      console.error("Update room type error:", error);
+      return dbFailure(error, "room_type.update_failed");
+    }
+    if (!updated?.length) {
+      return failure("room_type.not_found", "Room type not found.");
     }
 
-    revalidatePath("/dashboard/rooms");
-    revalidatePath("/dashboard/availability");
-    revalidatePath("/search");
-
+    revalidateRoomPages();
     return success(undefined);
   } catch (err) {
     console.error("Unexpected error in updateRoomType:", err);
@@ -150,31 +140,44 @@ export async function updateRoomType(
   }
 }
 
-export async function deleteRoomType(
-  roomTypeId: string,
-  propertyId: string
-): Promise<ActionResult<void>> {
+export async function deleteRoomType(roomTypeId: string): Promise<ActionResult<void>> {
   try {
-    const admin = createAdminClient();
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
 
-    // Delete associated individual room units first
-    await admin.from("rooms").delete().eq("room_type_id", roomTypeId);
+    if (!idSchema.safeParse(roomTypeId).success || !ctx.propertyId) return invalidRequest();
 
-    // Delete room type
-    const { error: deleteError } = await admin
+    const { count: bookingCount } = await supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("room_type_id", roomTypeId);
+    if (bookingCount) {
+      return failure("room_type.has_bookings", "This room type has bookings and can't be deleted.");
+    }
+
+    const { error: unitsError } = await supabase.from("rooms").delete().eq("room_type_id", roomTypeId);
+    if (unitsError) {
+      console.error("Delete room units error:", unitsError);
+      return dbFailure(unitsError, "room_type.delete_failed");
+    }
+
+    const { data: deleted, error } = await supabase
       .from("room_types")
       .delete()
       .eq("id", roomTypeId)
-      .eq("property_id", propertyId);
+      .eq("property_id", ctx.propertyId)
+      .select("id");
 
-    if (deleteError) {
-      return failure("db.delete_failed", "Failed to delete room type: " + deleteError.message);
+    if (error) {
+      console.error("Delete room type error:", error);
+      return dbFailure(error, "room_type.delete_failed");
+    }
+    if (!deleted?.length) {
+      return failure("room_type.not_found", "Room type not found.");
     }
 
-    revalidatePath("/dashboard/rooms");
-    revalidatePath("/dashboard/availability");
-    revalidatePath("/search");
-
+    revalidateRoomPages();
     return success(undefined);
   } catch (err) {
     console.error("Unexpected error in deleteRoomType:", err);
@@ -182,32 +185,34 @@ export async function deleteRoomType(
   }
 }
 
-export async function addRoomUnit(
-  roomTypeId: string,
-  data: RoomUnitInput
-): Promise<ActionResult<{ id: string }>> {
+export async function addRoomUnit(roomTypeId: string, data: RoomUnitInput): Promise<ActionResult<{ id: string }>> {
   try {
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase } = guard;
+
+    if (!idSchema.safeParse(roomTypeId).success) return invalidRequest();
+
     const parsed = roomUnitSchema.safeParse(data);
     if (!parsed.success) {
       return failure("validation.failed", "Room number is required.");
     }
 
-    const admin = createAdminClient();
-
-    const { data: newUnit, error } = await admin
+    const { data: newUnit, error } = await supabase
       .from("rooms")
       .insert({
         room_type_id: roomTypeId,
         room_number: parsed.data.room_number.trim(),
         floor: parsed.data.floor?.trim() || null,
         notes: parsed.data.notes?.trim() || null,
-        status: parsed.data.status as RoomStatus,
+        status: parsed.data.status,
       })
       .select("id")
       .single();
 
     if (error || !newUnit) {
-      return failure("db.insert_failed", "Could not add unit: " + (error?.message || ""));
+      console.error("Add room unit error:", error);
+      return dbFailure(error, "room.create_failed");
     }
 
     revalidatePath("/dashboard/rooms");
@@ -218,19 +223,28 @@ export async function addRoomUnit(
   }
 }
 
-export async function updateRoomUnitStatus(
-  roomId: string,
-  status: RoomStatus
-): Promise<ActionResult<void>> {
+export async function updateRoomUnitStatus(roomId: string, status: RoomStatus): Promise<ActionResult<void>> {
   try {
-    const admin = createAdminClient();
-    const { error } = await admin
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase } = guard;
+
+    if (!idSchema.safeParse(roomId).success || !roomStatusSchema.safeParse(status).success) {
+      return invalidRequest();
+    }
+
+    const { data: updated, error } = await supabase
       .from("rooms")
       .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", roomId);
+      .eq("id", roomId)
+      .select("id");
 
     if (error) {
-      return failure("db.update_failed", "Could not update unit status.");
+      console.error("Update room status error:", error);
+      return dbFailure(error, "room.update_failed");
+    }
+    if (!updated?.length) {
+      return failure("room.not_found", "Room unit not found.");
     }
 
     revalidatePath("/dashboard/rooms");
@@ -243,11 +257,20 @@ export async function updateRoomUnitStatus(
 
 export async function deleteRoomUnit(roomId: string): Promise<ActionResult<void>> {
   try {
-    const admin = createAdminClient();
-    const { error } = await admin.from("rooms").delete().eq("id", roomId);
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase } = guard;
+
+    if (!idSchema.safeParse(roomId).success) return invalidRequest();
+
+    const { data: deleted, error } = await supabase.from("rooms").delete().eq("id", roomId).select("id");
 
     if (error) {
-      return failure("db.delete_failed", "Could not delete room unit.");
+      console.error("Delete room unit error:", error);
+      return dbFailure(error, "room.delete_failed");
+    }
+    if (!deleted?.length) {
+      return failure("room.not_found", "Room unit not found.");
     }
 
     revalidatePath("/dashboard/rooms");
@@ -266,31 +289,34 @@ export async function batchCreateRoomUnits(
   floor?: string
 ): Promise<ActionResult<{ created: number }>> {
   try {
-    if (count <= 0 || count > 50) {
-      return failure("validation.failed", "Batch count must be between 1 and 50.");
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase } = guard;
+
+    const parsed = batchSchema.safeParse({ roomTypeId, prefix, startNumber, count, floor });
+    if (!parsed.success) {
+      const message = parsed.error.flatten().fieldErrors.count?.[0] ?? "Invalid batch parameters.";
+      return failure("validation.failed", message);
     }
 
-    const units = [];
-    for (let i = 0; i < count; i++) {
-      const num = startNumber + i;
-      const roomNum = prefix ? `${prefix.trim()} ${num}` : `${num}`;
-      units.push({
-        room_type_id: roomTypeId,
-        room_number: roomNum,
-        floor: floor?.trim() || null,
+    const units = Array.from({ length: parsed.data.count }, (_, i) => {
+      const num = parsed.data.startNumber + i;
+      return {
+        room_type_id: parsed.data.roomTypeId,
+        room_number: parsed.data.prefix.trim() ? `${parsed.data.prefix.trim()} ${num}` : `${num}`,
+        floor: parsed.data.floor?.trim() || null,
         status: "available" as RoomStatus,
-      });
-    }
+      };
+    });
 
-    const admin = createAdminClient();
-    const { error } = await admin.from("rooms").insert(units);
-
+    const { error } = await supabase.from("rooms").insert(units);
     if (error) {
-      return failure("db.insert_failed", "Failed to batch create units: " + error.message);
+      console.error("Batch create room units error:", error);
+      return dbFailure(error, "room.create_failed");
     }
 
     revalidatePath("/dashboard/rooms");
-    return success({ created: count });
+    return success({ created: units.length });
   } catch (err) {
     console.error("Unexpected error in batchCreateRoomUnits:", err);
     return failure("unexpected.error", "An error occurred during batch unit creation.");
