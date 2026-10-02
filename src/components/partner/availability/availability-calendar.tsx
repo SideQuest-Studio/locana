@@ -203,22 +203,8 @@ export function AvailabilityCalendar({
       if (!res.success) {
         alert(res.error.message);
       } else {
-        setDaysData((prev) => ({
-          ...prev,
-          [selectedDateKey]: {
-            date: selectedDateKey,
-            available_count: totalInventory,
-            booked: prev[selectedDateKey]?.booked ?? 0,
-            rooms_left: Math.max(totalInventory - (prev[selectedDateKey]?.booked ?? 0), 0),
-            price: basePrice,
-            is_override: false,
-            price_override: null,
-            minimum_stay: null,
-            closed_to_arrival: false,
-            closed_to_departure: false,
-            is_blocked: false,
-          },
-        }));
+        // Reload so the day shows rule-based pricing again, exactly as guests are quoted.
+        loadMonthData(selectedRoomTypeId, currentYear, currentMonth);
         setSelectedDateKey(null);
         setSuccessMessage(`Reset ${selectedDateKey} to default settings.`);
         setTimeout(() => setSuccessMessage(null), 3000);

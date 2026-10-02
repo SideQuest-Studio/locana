@@ -127,9 +127,9 @@ export function SearchPageContent() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        toast.error(data.error || "Booking creation failed", {
+        toast.error(data.message || "Booking creation failed", {
           id: toastId,
-          description: data.message || "Please check room availability and try again.",
+          description: "Please check your dates and room, then try again.",
         });
         setIsBooking(false);
         return;

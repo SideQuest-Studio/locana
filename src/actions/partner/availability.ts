@@ -118,7 +118,9 @@ export async function fetchMonthlyAvailability(
 
     const overrideByDate = new Map((overrides ?? []).map((o) => [o.date, o]));
     const nightByDate = new Map(
-      ((calendar ?? []) as { night: string; booked: number; rooms_left: number }[]).map((n) => [n.night, n])
+      ((calendar ?? []) as { night: string; price: number; booked: number; rooms_left: number; minimum_stay: number }[]).map(
+        (n) => [n.night, n]
+      )
     );
     const basePrice = Number(roomType.base_price);
     const days: Record<string, DayAvailabilityRecord> = {};
@@ -136,10 +138,11 @@ export async function fetchMonthlyAvailability(
         available_count: availableCount,
         booked: night?.booked ?? 0,
         rooms_left: night?.rooms_left ?? availableCount,
-        price: priceOverride ?? basePrice,
+        // Same nightly price a guest is quoted: override, else base + pricing rule.
+        price: night ? Number(night.price) : priceOverride ?? basePrice,
         is_override: Boolean(custom),
         price_override: priceOverride,
-        minimum_stay: custom?.minimum_stay ?? null,
+        minimum_stay: custom?.minimum_stay ?? (night && night.minimum_stay > 1 ? night.minimum_stay : null),
         closed_to_arrival: Boolean(custom?.closed_to_arrival),
         closed_to_departure: Boolean(custom?.closed_to_departure),
         is_blocked: availableCount === 0,

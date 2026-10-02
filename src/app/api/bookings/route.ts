@@ -29,6 +29,7 @@ export async function GET() {
       .from("bookings")
       .select(`
         id,
+        reference,
         check_in,
         check_out,
         adults_count,

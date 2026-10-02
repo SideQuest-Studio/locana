@@ -33,14 +33,26 @@ const pricingRuleSchema = z
     start_date: optionalDate,
     end_date: optionalDate,
     days_of_week: z.array(z.number().int().min(0).max(6)).default([]),
-    price_modifier: z.coerce.number(),
-    minimum_stay: z.coerce.number().min(1).optional().nullable(),
+    // null means "this rule doesn't change the price" (e.g. a minimum-stay-only rule); 0 would
+    // still win price precedence and silently cancel a lower-priority surge.
+    price_modifier: z.preprocess(
+      (value) => (value === "" || value === undefined ? null : value),
+      z.coerce.number().nullable()
+    ),
+    minimum_stay: z.preprocess(
+      (value) => (value === "" || value === undefined ? null : value),
+      z.coerce.number().int().min(1).nullable()
+    ),
     priority: z.coerce.number().min(0).default(0),
     is_active: z.boolean().default(true),
   })
   .refine((rule) => !rule.start_date || !rule.end_date || rule.end_date >= rule.start_date, {
     message: "End date must be on or after start date",
     path: ["end_date"],
+  })
+  .refine((rule) => rule.price_modifier !== null || rule.minimum_stay !== null, {
+    message: "Set a price change, a minimum stay, or both",
+    path: ["price_modifier"],
   });
 
 export type PricingRuleInput = z.infer<typeof pricingRuleSchema>;
@@ -80,7 +92,7 @@ function pricingRuleRow(data: PricingRuleInput) {
     end_date: data.end_date || null,
     days_of_week: data.days_of_week,
     price_modifier: data.price_modifier,
-    minimum_stay: data.minimum_stay || null,
+    minimum_stay: data.minimum_stay,
     priority: data.priority,
     is_active: data.is_active,
   };

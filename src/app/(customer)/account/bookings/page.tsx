@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 interface BookingItem {
   id: string;
+  reference: string;
   check_in: string;
   check_out: string;
   adults_count: number;
@@ -147,7 +148,7 @@ export default function BookingsPage() {
               prop?.images?.find((img) => img.is_cover)?.image_url ||
               prop?.images?.[0]?.image_url ||
               "/hero.jpg";
-            const refCode = `DIP-${booking.id.substring(0, 8).toUpperCase()}`;
+            const refCode = booking.reference;
 
             return (
               <div
