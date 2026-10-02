@@ -101,8 +101,9 @@ export type PartnerBookingsStats = {
 
 /** Shape returned by get_partner_booking_detail RPC (jsonb document) */
 export type PartnerBookingDetail = {
-  booking: Booking;
-  guest: Profile | null;
+  /** effective_status reports a lapsed unpaid hold as "expired" before any job relabels it. */
+  booking: Booking & { effective_status: BookingStatus };
+  guest: Pick<Profile, "id" | "first_name" | "last_name" | "email" | "phone_number" | "avatar_url"> | null;
   room_type: RoomType | null;
   property: import("./property.types").Property | null;
   payments: Payment[];

@@ -9,10 +9,11 @@ import { QuickActions } from "@/src/components/partner/dashboard/QuickActions";
 import { ListingsSection } from "@/src/components/partner/dashboard/ListingsSection";
 
 import {
-  mockRecentBookings,
-  mockQuickActions,
-  mockListings,
-} from "@/src/lib/dashboard/mock-data";
+  PARTNER_QUICK_ACTIONS,
+  toListingCard,
+  toRecentBookingRow,
+} from "@/src/lib/partner/dashboard-view";
+import type { PartnerBookingRow } from "@/src/types/database.types";
 
 export default async function PartnerDashboardPage() {
   const profile = await getUserProfile();
@@ -24,18 +25,24 @@ export default async function PartnerDashboardPage() {
   // ── Data fetching ──────────────────────────────────────────────────────────
   const supabase = await createClient();
   
-  const { data: rawStats, error } = await supabase
-    .rpc("get_partner_dashboard_stats", { p_partner_id: profile.partner_id })
-    .single<{
+  const [statsResult, bookingsResult, propertyResult] = await Promise.all([
+    supabase.rpc("get_partner_dashboard_stats").single<{
       total_listings: number;
       today_bookings: number;
       pending_checkins: number;
       avg_rating: number;
-    }>();
+    }>(),
+    supabase.rpc("get_partner_bookings", { p_limit: 5, p_sort_by: "created_at_desc" }),
+    supabase
+      .from("properties")
+      .select("id, name, address, status, images:property_images(image_url, is_cover), room_types(base_price), reviews(count)")
+      .eq("partner_id", profile.partner_id)
+      .maybeSingle(),
+  ]);
 
-  if (error) {
-    console.error("Error fetching stats:", error);
-    // Handle error appropriately, maybe fallback to empty stats
+  const rawStats = statsResult.data;
+  for (const { error } of [statsResult, bookingsResult, propertyResult]) {
+    if (error) console.error("Partner dashboard query failed:", error);
   }
 
   const stats = rawStats ? [
@@ -85,9 +92,28 @@ export default async function PartnerDashboardPage() {
     },
   ] : [];
 
-  const bookings     = mockRecentBookings;
-  const quickActions = mockQuickActions;
-  const listings     = mockListings;
+  const bookings = ((bookingsResult.data ?? []) as PartnerBookingRow[]).map(toRecentBookingRow);
+
+  const property = propertyResult.data;
+  const listings = property
+    ? [
+        toListingCard({
+          id: property.id,
+          name: property.name,
+          address: property.address,
+          status: property.status,
+          coverImage:
+            property.images?.find((img: { is_cover: boolean }) => img.is_cover)?.image_url ??
+            property.images?.[0]?.image_url ??
+            null,
+          minPrice: property.room_types?.length
+            ? Math.min(...property.room_types.map((rt: { base_price: number }) => Number(rt.base_price)))
+            : null,
+          avgRating: Number(rawStats?.avg_rating ?? 0),
+          reviewCount: property.reviews?.[0]?.count ?? 0,
+        }),
+      ]
+    : [];
 
   return (
     <div className="space-y-6 pb-10">
@@ -106,7 +132,7 @@ export default async function PartnerDashboardPage() {
       {/* Recent bookings (left) + Quick actions (right) */}
       <section className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         <RecentBookings bookings={bookings} />
-        <QuickActions actions={quickActions} />
+        <QuickActions actions={PARTNER_QUICK_ACTIONS} />
       </section>
 
       {/* My listings grid */}

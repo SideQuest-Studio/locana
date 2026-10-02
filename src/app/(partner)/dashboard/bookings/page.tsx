@@ -18,13 +18,12 @@ export default async function PartnerBookingsPage() {
 
   // Fetch stats
   const { data: stats } = await supabase
-    .rpc("get_partner_bookings_stats", { p_partner_id: profile.partner_id })
+    .rpc("get_partner_bookings_stats")
     .single();
 
   // Fetch initial bookings (page 1, 10 per page)
   const { data: bookingsRaw } = await supabase
     .rpc("get_partner_bookings", {
-      p_partner_id: profile.partner_id,
       p_limit: 10,
       p_offset: 0,
     });
@@ -58,7 +57,6 @@ export default async function PartnerBookingsPage() {
 
       {/* Interactive content (client) */}
       <BookingsPageContent
-        partnerId={profile.partner_id}
         initialStats={initialStats}
         initialBookings={initialBookings}
         initialTotal={initialTotal}
