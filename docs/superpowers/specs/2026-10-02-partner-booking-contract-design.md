@@ -48,7 +48,7 @@ Internal: `stay_nights(room_type, rate_plan, check_in, check_out)` returns per-n
 - Partner actions use the session client; partner id never accepted from the client. Admin client only for storage, after the guard.
 - Existing partner policies additionally require `is_approved_partner()`. Storage `property-images` writes scoped to the partner's own property folder.
 - RLS enabled + policies on the 21 uncovered tables (grouping per conversation: public reference, property-linked, booking children, money, server-only, audit, guest IDs, promos, reviews, loyalty).
-- Audit triggers on `properties`, `room_types`, `rate_plans`, `pricing_rules`, `room_type_availability`, `partners` write `audit_logs` (actor = `auth.uid()`, before/after). Manual audit inserts in `approve-partner.ts` removed.
+- Audit triggers on `properties`, `room_types`, `rate_plans`, `pricing_rules`, `room_type_availability` write `audit_logs` (actor = `auth.uid()`, before/after). `partners` is excluded: approvals run with the service role, where `auth.uid()` is null, so `approve-partner.ts` keeps its explicit audit rows that record the admin actor.
 - `get_partner_dashboard_stats` derives the caller's partner.
 
 ## Partner bookings fixes
