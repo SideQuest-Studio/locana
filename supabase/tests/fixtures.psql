@@ -1,0 +1,69 @@
+-- Shared seed for pgTAP tests. Included with `\ir fixtures.psql` inside each test's transaction.
+-- Partners A and B are approved, C is pending. A has an owner and a front-desk staff member.
+
+SET LOCAL session_replication_role = replica; -- skip profile guard, auth and audit triggers while seeding
+
+CREATE OR REPLACE FUNCTION pg_temp.tests_login(p_uid uuid) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_uid, 'role', 'authenticated')::text, true);
+  EXECUTE 'SET LOCAL ROLE authenticated';
+END $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.tests_anon() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claims', '{"role":"anon"}', true);
+  EXECUTE 'SET LOCAL ROLE anon';
+END $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.tests_logout() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE 'RESET ROLE';
+  PERFORM set_config('request.jwt.claims', '', true);
+END $$;
+
+INSERT INTO auth.users (id, email, aud, role) VALUES
+ ('a0000000-0000-0000-0000-00000000000a','owner-a@test.dip','authenticated','authenticated'),
+ ('a0000000-0000-0000-0000-0000000000aa','desk-a@test.dip','authenticated','authenticated'),
+ ('a0000000-0000-0000-0000-00000000000b','owner-b@test.dip','authenticated','authenticated'),
+ ('a0000000-0000-0000-0000-00000000000c','owner-c@test.dip','authenticated','authenticated'),
+ ('a0000000-0000-0000-0000-0000000000c1','cust-x@test.dip','authenticated','authenticated'),
+ ('a0000000-0000-0000-0000-0000000000c2','cust-y@test.dip','authenticated','authenticated');
+
+INSERT INTO public.partners (id, owner_id, business_name, status) VALUES
+ ('b0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a','Resort A','approved'),
+ ('b0000000-0000-0000-0000-00000000000b','a0000000-0000-0000-0000-00000000000b','Resort B','approved'),
+ ('b0000000-0000-0000-0000-00000000000c','a0000000-0000-0000-0000-00000000000c','Resort C','pending');
+
+INSERT INTO public.profiles (id, email, first_name, last_name, role, partner_id, staff_role) VALUES
+ ('a0000000-0000-0000-0000-00000000000a','owner-a@test.dip','Ana','Owner','partner_owner','b0000000-0000-0000-0000-00000000000a',NULL),
+ ('a0000000-0000-0000-0000-0000000000aa','desk-a@test.dip','Dan','Desk','partner_staff','b0000000-0000-0000-0000-00000000000a','front_desk'),
+ ('a0000000-0000-0000-0000-00000000000b','owner-b@test.dip','Ben','Owner','partner_owner','b0000000-0000-0000-0000-00000000000b',NULL),
+ ('a0000000-0000-0000-0000-00000000000c','owner-c@test.dip','Cy','Owner','partner_owner','b0000000-0000-0000-0000-00000000000c',NULL),
+ ('a0000000-0000-0000-0000-0000000000c1','cust-x@test.dip','Xia','Guest','customer',NULL,NULL),
+ ('a0000000-0000-0000-0000-0000000000c2','cust-y@test.dip','Yul','Guest','customer',NULL,NULL);
+
+INSERT INTO public.areas (id, name_en, name_fil, slug) VALUES
+ ('c0000000-0000-0000-0000-000000000001','Test Town','Test Bayan','test-town');
+
+INSERT INTO public.properties (id, partner_id, area_id, name, slug, property_type, status) VALUES
+ ('d0000000-0000-0000-0000-00000000000a','b0000000-0000-0000-0000-00000000000a','c0000000-0000-0000-0000-000000000001','Resort A','test-resort-a','resort','published'),
+ ('d0000000-0000-0000-0000-00000000000b','b0000000-0000-0000-0000-00000000000b','c0000000-0000-0000-0000-000000000001','Resort B','test-resort-b','resort','published'),
+ ('d0000000-0000-0000-0000-00000000000c','b0000000-0000-0000-0000-00000000000c','c0000000-0000-0000-0000-000000000001','Resort C','test-resort-c','resort','published');
+
+INSERT INTO public.room_types (id, property_id, name_en, capacity, max_adults, max_children, base_price, total_inventory) VALUES
+ ('e0000000-0000-0000-0000-0000000000a1','d0000000-0000-0000-0000-00000000000a','Garden Room',3,2,1,3000,2),
+ ('e0000000-0000-0000-0000-0000000000b1','d0000000-0000-0000-0000-00000000000b','Beach Hut',2,2,0,2000,1),
+ ('e0000000-0000-0000-0000-0000000000c1','d0000000-0000-0000-0000-00000000000c','Hidden Room',2,2,0,1000,1);
+
+INSERT INTO public.rate_plans (id, room_type_id, name_en, price_modifier, includes_breakfast) VALUES
+ ('f0000000-0000-0000-0000-0000000000a1','e0000000-0000-0000-0000-0000000000a1','With Breakfast',500,true),
+ ('f0000000-0000-0000-0000-0000000000b1','e0000000-0000-0000-0000-0000000000b1','Room Only',0,false);
+
+INSERT INTO public.rooms (id, room_type_id, room_number, status) VALUES
+ ('90000000-0000-0000-0000-0000000000a1','e0000000-0000-0000-0000-0000000000a1','101','available'),
+ ('90000000-0000-0000-0000-0000000000a2','e0000000-0000-0000-0000-0000000000a1','102','available'),
+ ('90000000-0000-0000-0000-0000000000a3','e0000000-0000-0000-0000-0000000000a1','103','maintenance'),
+ ('90000000-0000-0000-0000-0000000000b1','e0000000-0000-0000-0000-0000000000b1','B1','available');
+
+SET LOCAL session_replication_role = origin;
+SELECT (current_date + 30) AS d0 \gset
