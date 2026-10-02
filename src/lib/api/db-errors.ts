@@ -12,6 +12,7 @@ const KNOWN: Record<string, { code: string; message: string }> = {
   CLOSED_TO_DEPARTURE: { code: "booking.closed_to_departure", message: "Check-out isn't available on that date." },
   OVER_CAPACITY: { code: "booking.over_capacity", message: "Too many guests for this room." },
   SOLD_OUT: { code: "booking.sold_out", message: "This room is sold out for your dates." },
+  TOO_MANY_HOLDS: { code: "booking.too_many_holds", message: "You already have 3 unpaid reservations. Complete or let one expire before booking another." },
   FORBIDDEN: { code: "partner.forbidden", message: "You don't have permission to do that." },
   BOOKING_NOT_FOUND: { code: "booking.not_found", message: "Booking not found." },
   INVALID_STATUS_TRANSITION: { code: "booking.invalid_transition", message: "That action isn't allowed for this booking's status." },

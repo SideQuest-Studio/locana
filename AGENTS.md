@@ -98,6 +98,7 @@ Agents **must not guess** these. Implement extensible placeholders and document 
 | TBD-06 | Launch municipalities | Undecided | Seed: Lucena, Tayabas, Pagbilao, Lucban, Infanta — expand via `areas` table |
 | TBD-07 | Loyalty program mechanics | Mentioned for v1 | **Stub table + UI hidden behind feature flag** unless sprint time allows |
 | TBD-08 | Compare properties | Mentioned for v1 | **Feature flag off**; schema not required for MVP |
+| TBD-09 | Max concurrent unpaid holds per customer | Undecided | **3** active `pending_payment` holds per customer, enforced in `create_booking()` (`TOO_MANY_HOLDS`) |
 
 When the user updates decisions, edit this table first, then implement.
 

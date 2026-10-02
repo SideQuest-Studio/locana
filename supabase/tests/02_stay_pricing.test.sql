@@ -1,6 +1,6 @@
 BEGIN;
 \ir fixtures.psql
-SELECT plan(24);
+SELECT plan(26);
 
 CREATE FUNCTION pg_temp.price(p_rp uuid, p_d date) RETURNS numeric LANGUAGE sql AS $$
   SELECT price FROM public.stay_nights('e0000000-0000-0000-0000-0000000000a1', p_rp, p_d, p_d + 1)
@@ -49,6 +49,10 @@ SELECT is(pg_temp.reason('e0000000-0000-0000-0000-0000000000a1', NULL, current_d
 SELECT is(pg_temp.reason('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date, :'d0'::date), 'INVALID_DATES', 'zero nights');
 SELECT is(pg_temp.reason('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date, :'d0'::date + 31), 'INVALID_DATES', '31 nights');
 SELECT is(pg_temp.reason('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date, :'d0'::date + 1, 3, 0), 'OVER_CAPACITY', 'too many adults');
+SELECT is(public.quote_stay('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date, :'d0'::date + 2)->>'rate_plan_id',
+  'f0000000-0000-0000-0000-0000000000a1', 'no plan given: falls back to the room type''s plan');
+SELECT is((public.quote_stay('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date, :'d0'::date + 2)->>'subtotal')::numeric,
+  7000.00, 'no plan given: plan modifier still applies');
 SELECT is(jsonb_array_length(public.get_property_offers('d0000000-0000-0000-0000-00000000000a', :'d0'::date, :'d0'::date + 2)->'offers'),
   1, 'offers: one per room type x rate plan');
 SELECT is(public.get_property_offers('d0000000-0000-0000-0000-00000000000c', :'d0'::date, :'d0'::date + 2)->>'reason',

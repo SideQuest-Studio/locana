@@ -138,7 +138,10 @@ export async function POST(request: NextRequest) {
       const mapped = mapDbError(error, "booking.create_failed");
       const unexpected = mapped.code === "booking.create_failed";
       if (unexpected) console.error("create_booking failed:", error);
-      const status = mapped.code === "booking.sold_out" ? 409 : unexpected ? 500 : 400;
+      const status =
+        mapped.code === "booking.sold_out" ? 409
+        : mapped.code === "booking.too_many_holds" ? 429
+        : unexpected ? 500 : 400;
       return NextResponse.json({ success: false, error: mapped.code, message: mapped.message }, { status });
     }
 

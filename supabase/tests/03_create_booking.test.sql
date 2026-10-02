@@ -1,6 +1,6 @@
 BEGIN;
 \ir fixtures.psql
-SELECT plan(9);
+SELECT plan(12);
 
 SELECT pg_temp.tests_anon();
 SELECT throws_ok(format($$SELECT public.create_booking('e0000000-0000-0000-0000-0000000000b1', NULL, %L, %L)$$, :'d0'::date, :'d0'::date + 1),
@@ -28,6 +28,18 @@ SELECT lives_ok(format($$SELECT public.create_booking('e0000000-0000-0000-0000-0
   'second room still available');
 SELECT throws_ok(format($$SELECT public.create_booking('e0000000-0000-0000-0000-0000000000a1', NULL, %L, %L)$$, :'d0'::date, :'d0'::date + 1),
   'SOLD_OUT', 'third booking sold out');
+SELECT pg_temp.tests_logout();
+
+SELECT is((SELECT rate_plan_id FROM public.bookings WHERE customer_id = 'a0000000-0000-0000-0000-0000000000c2'),
+  'f0000000-0000-0000-0000-0000000000a1'::uuid, 'booking without plan stores the resolved plan');
+
+-- A customer may hold at most 3 unpaid bookings at once (X already holds one).
+SELECT pg_temp.tests_login('a0000000-0000-0000-0000-0000000000c1');
+SELECT lives_ok(format($$SELECT public.create_booking('e0000000-0000-0000-0000-0000000000b1', NULL, %L, %L)$$, :'d0'::date + 5, :'d0'::date + 6),
+  'second active hold allowed');
+SELECT public.create_booking('e0000000-0000-0000-0000-0000000000a1', NULL, :'d0'::date + 10, :'d0'::date + 11);
+SELECT throws_ok(format($$SELECT public.create_booking('e0000000-0000-0000-0000-0000000000a1', NULL, %L, %L)$$, :'d0'::date + 12, :'d0'::date + 13),
+  'TOO_MANY_HOLDS', 'fourth active hold rejected');
 SELECT pg_temp.tests_logout();
 
 SELECT * FROM finish();
