@@ -57,7 +57,6 @@ export interface PartnerPropertyData {
 }
 
 interface PropertyManagementProps {
-  partnerId: string;
   initialProperty: PartnerPropertyData;
   areas: Area[];
   amenitiesByCategory: {
@@ -67,7 +66,6 @@ interface PropertyManagementProps {
 }
 
 export function PropertyManagement({
-  partnerId,
   initialProperty,
   areas,
   amenitiesByCategory,
@@ -133,7 +131,7 @@ export function PropertyManagement({
     };
 
     startTransition(async () => {
-      const res = await savePropertyDetails(partnerId, payload);
+      const res = await savePropertyDetails(payload);
       if (!res.success) {
         setErrorMessage(res.error.message);
       } else {
@@ -160,7 +158,7 @@ export function PropertyManagement({
     const data = new FormData();
     data.append("image", file);
 
-    const res = await uploadPropertyImage(propertyIdToUse, partnerId, data);
+    const res = await uploadPropertyImage(data);
     setUploadingPhoto(false);
 
     if (!res.success) {
@@ -184,7 +182,7 @@ export function PropertyManagement({
     if (!propertyIdToUse || !confirm("Are you sure you want to remove this photo?")) return;
 
     startTransition(async () => {
-      const res = await deletePropertyImage(imageId, propertyIdToUse);
+      const res = await deletePropertyImage(imageId);
       if (!res.success) {
         alert(res.error.message);
       } else {
@@ -198,7 +196,7 @@ export function PropertyManagement({
     if (!propertyIdToUse) return;
 
     startTransition(async () => {
-      const res = await setCoverPropertyImage(imageId, propertyIdToUse);
+      const res = await setCoverPropertyImage(imageId);
       if (!res.success) {
         alert(res.error.message);
       } else {

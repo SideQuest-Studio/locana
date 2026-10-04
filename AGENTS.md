@@ -98,6 +98,7 @@ Agents **must not guess** these. Implement extensible placeholders and document 
 | TBD-06 | Launch municipalities | Undecided | Seed: Lucena, Tayabas, Pagbilao, Lucban, Infanta — expand via `areas` table |
 | TBD-07 | Loyalty program mechanics | Mentioned for v1 | **Stub table + UI hidden behind feature flag** unless sprint time allows |
 | TBD-08 | Compare properties | Mentioned for v1 | **Feature flag off**; schema not required for MVP |
+| TBD-09 | Max concurrent unpaid holds per customer | Undecided | **3** active `pending_payment` holds per customer, enforced in `create_booking()` (`TOO_MANY_HOLDS`) |
 
 When the user updates decisions, edit this table first, then implement.
 
@@ -261,7 +262,7 @@ pending_payment → confirmed → checked_in → checked_out
 
 **Rules:**
 
-- `pending_payment`: inventory is **held** (available_count decremented) for 15 minutes (configurable via `BOOKING_HOLD_MINUTES` env var). A scheduled job or Supabase pg_cron task expires stale holds and releases inventory.
+- `pending_payment`: inventory is **held** for 15 minutes (`hold_expires_at`): the booking counts against rooms left until the hold lapses. A lapsed hold stops counting immediately; a scheduled job only relabels its status to `expired`.
 - `confirmed`: set only after a successful `payment.paid` webhook is processed. Never set it from the client.
 - `checked_in` / `completed`: partner staff action. `completed` can also auto-trigger via a nightly cron job for bookings whose `check_out_date < now()` and status is still `checked_in`.
 - **All transitions are recorded** in `booking_status_history` (append-only, no UPDATE allowed via RLS). This is your audit log — never skip it.
@@ -275,7 +276,7 @@ UPDATE bookings
 SET status = 'expired'
 WHERE status = 'pending_payment'
   AND created_at < now() - (current_setting('app.booking_hold_minutes')::int * interval '1 minute');
--- Trigger releases room_type_availability inventory via AFTER UPDATE trigger
+-- No inventory release needed: lapsed holds already stop counting toward rooms left.
 ```
 
 ---
@@ -284,26 +285,21 @@ WHERE status = 'pending_payment'
 
 **Two layers (both required):**
 
-1. **Room type quantity** — `room_type_availability(room_type_id, date, available_count)`. Decremented atomically inside `create_booking()` RPC. Used for search filters and calendar views.
+1. **Room type quantity (derived)** — `room_type_availability.available_count` is the partner's **allotment** for that night (default `room_types.total_inventory` when no row exists). It is never decremented. Rooms left = allotment − active bookings covering the night (`confirmed`, `checked_in`, or `pending_payment` with an unexpired hold). `stay_nights()` computes this once for quotes, `create_booking()` and the partner calendar.
 2. **Individual room units** — `rooms` table with `status: available | occupied | maintenance`. Assigned at check-in by partner staff (or optionally at booking if partner prefers guaranteed unit assignment).
 
 **Concurrency control (critical):**
 
 ```sql
--- Inside create_booking() RPC — always within a transaction
-SELECT available_count
-FROM room_type_availability
-WHERE room_type_id = p_room_type_id
-  AND date BETWEEN p_check_in AND p_check_out - 1
-FOR UPDATE;  -- row-level lock prevents race condition
-
--- Only proceed if available_count >= p_requested_count for ALL dates in range
--- Then decrement:
-UPDATE room_type_availability
-SET available_count = available_count - p_requested_count
-WHERE room_type_id = p_room_type_id
-  AND date BETWEEN p_check_in AND p_check_out - 1;
+-- Inside create_booking() RPC — one transaction
+PERFORM 1 FROM room_types WHERE id = p_room_type_id FOR UPDATE;  -- serialize per room type
+v_quote := quote_stay(p_room_type_id, p_rate_plan_id, p_check_in, p_check_out, p_adults, p_children);
+-- quote_stay reads stay_nights(): price, allotment, booked, rooms_left per night.
+-- Proceed only if bookable (rooms_left >= 1 every night, min-stay, CTA/CTD, capacity, visibility);
+-- otherwise RAISE the reason code (e.g. SOLD_OUT). Then insert booking + booking_status_history.
 ```
+
+Partner calendar edits and "reset" never need to account for sold rooms: they change the allotment, and rooms left is recomputed.
 
 `SELECT … FOR UPDATE` inside the RPC is the correct tool here. Do not use optimistic locking for booking — the window for double-booking is real, especially during peak weekends.
 

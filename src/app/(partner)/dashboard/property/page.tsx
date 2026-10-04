@@ -130,7 +130,6 @@ export default async function PropertyPage() {
 
   return (
     <PropertyManagement
-      partnerId={partnerId}
       initialProperty={initialProperty}
       areas={areas}
       amenitiesByCategory={amenitiesByCategory}

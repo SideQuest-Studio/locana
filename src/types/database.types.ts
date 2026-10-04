@@ -25,13 +25,16 @@ export type PaymentMethod = "paymongo_gcash" | "paymongo_card" | "paymongo_grabp
 
 export type Booking = {
   id: string;
+  reference: string;
   customer_id: string;
   room_type_id: string;
+  rate_plan_id: string | null;
   promo_code_id: string | null;
   check_in: string;
   check_out: string;
   adults_count: number;
   children_count: number;
+  special_requests: string | null;
   subtotal: number;
   discount_amount: number;
   total_amount: number;
@@ -98,8 +101,9 @@ export type PartnerBookingsStats = {
 
 /** Shape returned by get_partner_booking_detail RPC (jsonb document) */
 export type PartnerBookingDetail = {
-  booking: Booking;
-  guest: Profile | null;
+  /** effective_status reports a lapsed unpaid hold as "expired" before any job relabels it. */
+  booking: Booking & { effective_status: BookingStatus };
+  guest: Pick<Profile, "id" | "first_name" | "last_name" | "email" | "phone_number" | "avatar_url"> | null;
   room_type: RoomType | null;
   property: import("./property.types").Property | null;
   payments: Payment[];

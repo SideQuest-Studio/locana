@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/src/lib/supabase/server";
 import { createAdminClient } from "@/src/lib/supabase/admin";
-
-function isUUID(str: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-}
+import { mapDbError } from "@/src/lib/api/db-errors";
+import { z } from "zod";
 
 /**
  * GET /api/bookings
@@ -32,6 +29,7 @@ export async function GET() {
       .from("bookings")
       .select(`
         id,
+        reference,
         check_in,
         check_out,
         adults_count,
@@ -65,7 +63,7 @@ export async function GET() {
     if (bError) {
       console.error("Error fetching bookings:", bError);
       return NextResponse.json(
-        { success: false, error: bError.message, bookings: [] },
+        { success: false, error: "bookings.fetch_failed", bookings: [] },
         { status: 500 }
       );
     }
@@ -84,28 +82,30 @@ export async function GET() {
   }
 }
 
+const bookingBodySchema = z.object({
+  roomTypeId: z.string().uuid(),
+  ratePlanId: z.string().uuid().nullish(),
+  checkIn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  checkOut: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  adults: z.coerce.number().int().min(1).max(20).default(1),
+  children: z.coerce.number().int().min(0).max(20).default(0),
+  specialRequests: z.string().max(1000).optional(),
+});
+
 /**
  * POST /api/bookings
- * Creates an instant booking reservation with 30% downpayment calculation
- * Body: {
- *   propertyId: string,
- *   roomTypeId?: string,
- *   checkIn: string,
- *   checkOut: string,
- *   adults?: number,
- *   children?: number,
- *   specialRequests?: string
- * }
+ * Creates an instant booking through the create_booking RPC, which prices the stay server-side,
+ * checks partner availability and holds the room for the 30% downpayment.
+ * Body: { roomTypeId, ratePlanId?, checkIn, checkOut, adults?, children?, specialRequests? }
  */
 export async function POST(request: NextRequest) {
   try {
-    const authClient = await createClient();
+    const supabase = await createClient();
     const {
       data: { user },
-      error: authError,
-    } = await authClient.auth.getUser();
+    } = await supabase.auth.getUser();
 
-    if (authError || !user) {
+    if (!user) {
       return NextResponse.json(
         {
           success: false,
@@ -116,158 +116,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const {
-      propertyId,
-      roomTypeId,
-      checkIn,
-      checkOut,
-      adults = 1,
-      children = 0,
-      specialRequests = "",
-    } = body;
-
-    if (!propertyId) {
+    const parsed = bookingBodySchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: "Property identifier is required" },
+        { success: false, error: "validation.failed", message: "Please choose a room and valid dates." },
         { status: 400 }
       );
     }
+    const body = parsed.data;
 
-    const adminClient = createAdminClient();
-
-    // 1. Resolve Property from DB
-    let propertyQuery = adminClient.from("properties").select(`
-      id,
-      name,
-      slug,
-      downpayment_rate,
-      address,
-      area:areas(name_en),
-      room_types(id, name_en, base_price, capacity)
-    `);
-
-    if (isUUID(propertyId)) {
-      propertyQuery = propertyQuery.eq("id", propertyId);
-    } else {
-      propertyQuery = propertyQuery.or(`slug.eq.${propertyId},id.eq.${propertyId}`);
-    }
-
-    const { data: propData, error: propErr } = await propertyQuery.maybeSingle();
-
-    if (propErr || !propData) {
-      return NextResponse.json(
-        { success: false, error: "Selected property could not be found" },
-        { status: 404 }
-      );
-    }
-
-    // 2. Resolve Room Type
-    let selectedRoom = propData.room_types?.find(
-      (r: any) => r.id === roomTypeId || (isUUID(roomTypeId || "") && r.id === roomTypeId)
-    );
-
-    if (!selectedRoom && propData.room_types && propData.room_types.length > 0) {
-      selectedRoom = propData.room_types[0];
-    }
-
-    if (!selectedRoom) {
-      return NextResponse.json(
-        { success: false, error: "No room types available for this property" },
-        { status: 400 }
-      );
-    }
-
-    // 3. Calculate Dates and Pricing
-    const todayStr = new Date().toISOString().split("T")[0];
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowStr = tomorrowDate.toISOString().split("T")[0];
-
-    const finalCheckIn = checkIn || todayStr;
-    const finalCheckOut = checkOut || tomorrowStr;
-
-    const startDate = new Date(finalCheckIn).getTime();
-    const endDate = new Date(finalCheckOut).getTime();
-    const diffNights = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)));
-
-    const nightlyRate = Number(selectedRoom.base_price) || 3000;
-    const subtotal = nightlyRate * diffNights;
-    const downpaymentRate = Number(propData.downpayment_rate) || 0.3;
-    const downpaymentAmount = Math.round(subtotal * downpaymentRate);
-    const balanceDue = subtotal - downpaymentAmount;
-
-    // 4. Insert into `bookings` table
-    const holdExpiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-
-    const { data: newBooking, error: bookingErr } = await adminClient
-      .from("bookings")
-      .insert({
-        customer_id: user.id,
-        room_type_id: selectedRoom.id,
-        check_in: finalCheckIn,
-        check_out: finalCheckOut,
-        adults_count: adults,
-        children_count: children,
-        subtotal: subtotal,
-        discount_amount: 0,
-        total_amount: subtotal,
-        downpayment_amount: downpaymentAmount,
-        balance_due: balanceDue,
-        status: "pending_payment",
-        payment_status: "pending",
-        hold_expires_at: holdExpiry,
-      })
-      .select()
-      .single();
-
-    if (bookingErr || !newBooking) {
-      console.error("Booking creation error:", bookingErr);
-      return NextResponse.json(
-        { success: false, error: bookingErr?.message || "Failed to create booking" },
-        { status: 500 }
-      );
-    }
-
-    // 5. Insert Status History
-    await adminClient.from("booking_status_history").insert({
-      booking_id: newBooking.id,
-      from_status: null,
-      to_status: "pending_payment",
-      changed_by: user.id,
-      note: `Instant booking created. 30% downpayment hold (₱${downpaymentAmount.toLocaleString()}) active for 15 mins. ${specialRequests ? `Special Requests: ${specialRequests}` : ""}`,
+    const { data, error } = await supabase.rpc("create_booking", {
+      p_room_type_id: body.roomTypeId,
+      p_rate_plan_id: body.ratePlanId ?? null,
+      p_check_in: body.checkIn,
+      p_check_out: body.checkOut,
+      p_adults: body.adults,
+      p_children: body.children,
+      p_special_requests: body.specialRequests ?? null,
     });
+
+    if (error || !data) {
+      const mapped = mapDbError(error, "booking.create_failed");
+      const unexpected = mapped.code === "booking.create_failed";
+      if (unexpected) console.error("create_booking failed:", error);
+      const status =
+        mapped.code === "booking.sold_out" ? 409
+        : mapped.code === "booking.too_many_holds" ? 429
+        : unexpected ? 500 : 400;
+      return NextResponse.json({ success: false, error: mapped.code, message: mapped.message }, { status });
+    }
+
+    const { data: roomType } = await supabase
+      .from("room_types")
+      .select("name_en, property:properties(name, area:areas(name_en))")
+      .eq("id", body.roomTypeId)
+      .single();
+    const property = Array.isArray(roomType?.property) ? roomType.property[0] : roomType?.property;
+    const area = Array.isArray(property?.area) ? property.area[0] : property?.area;
+    const nights = Number(data.nights);
 
     return NextResponse.json({
       success: true,
-      message: `Reservation confirmed for ${propData.name}!`,
+      message: `Reservation held for ${property?.name ?? "your stay"}`,
       booking: {
-        id: newBooking.id,
-        referenceNumber: `DIP-${newBooking.id.substring(0, 8).toUpperCase()}`,
-        propertyName: propData.name,
-        roomName: selectedRoom.name_en,
-        areaName:
-          (Array.isArray(propData.area)
-            ? (propData.area[0] as any)?.name_en
-            : (propData.area as any)?.name_en) || "Quezon",
-        checkIn: finalCheckIn,
-        checkOut: finalCheckOut,
-        nights: diffNights,
-        adults,
-        children,
-        nightlyRate,
-        totalAmount: subtotal,
-        downpaymentAmount,
-        balanceDue,
-        status: newBooking.status,
-        holdExpiresAt: holdExpiry,
+        id: data.booking_id,
+        referenceNumber: data.reference,
+        propertyName: property?.name ?? "",
+        roomName: roomType?.name_en ?? "",
+        areaName: area?.name_en ?? "Quezon",
+        checkIn: data.check_in,
+        checkOut: data.check_out,
+        nights,
+        adults: body.adults,
+        children: body.children,
+        nightlyRate: Math.round((Number(data.subtotal) / nights) * 100) / 100,
+        totalAmount: Number(data.total),
+        downpaymentAmount: Number(data.downpayment),
+        balanceDue: Number(data.balance),
+        status: data.status,
+        holdExpiresAt: data.hold_expires_at,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Unexpected error in POST /api/bookings:", error);
-    return NextResponse.json(
-      { success: false, error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

@@ -16,7 +16,6 @@ import type { PartnerBookingRow, PartnerBookingsStats } from "@/src/types/databa
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BookingsPageContentProps {
-  partnerId: string;
   initialStats: PartnerBookingsStats;
   initialBookings: PartnerBookingRow[];
   initialTotal: number;
@@ -25,7 +24,6 @@ interface BookingsPageContentProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function BookingsPageContent({
-  partnerId,
   initialStats,
   initialBookings,
   initialTotal,
@@ -58,7 +56,6 @@ export function BookingsPageContent({
         const offset = (pageNum - 1) * size;
 
         const { data, error } = await supabase.rpc("get_partner_bookings", {
-          p_partner_id: partnerId,
           p_search: currentFilters.search || null,
           p_start_date: currentFilters.startDate || null,
           p_end_date: currentFilters.endDate || null,
@@ -80,7 +77,7 @@ export function BookingsPageContent({
         setLoading(false);
       }
     },
-    [partnerId]
+    []
   );
 
   // ── Fetch stats ───────────────────────────────────────────────────────────────
@@ -90,14 +87,14 @@ export function BookingsPageContent({
     try {
       const supabase = createClient();
       const { data } = await supabase
-        .rpc("get_partner_bookings_stats", { p_partner_id: partnerId })
+        .rpc("get_partner_bookings_stats")
         .single<PartnerBookingsStats>();
 
       if (data) setStats(data);
     } finally {
       setStatsLoading(false);
     }
-  }, [partnerId]);
+  }, []);
 
   // ── Handlers ──────────────────────────────────────────────────────────────────
 

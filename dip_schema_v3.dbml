@@ -412,7 +412,7 @@ Table room_type_availability {
     (room_type_id, date) [unique]
   }
 
-  Note: 'Decremented transactionally inside create_booking() RPC via SELECT ... FOR UPDATE (§5.5). Highest pricing precedence.'
+  Note: 'available_count = partner allotment for the night (default room_types.total_inventory), never decremented. Rooms left = allotment - active bookings, computed by stay_nights(); create_booking() serializes on room_types FOR UPDATE (§5.5). price_override has highest pricing precedence.'
 }
 
 Table rate_plans {
@@ -502,14 +502,17 @@ Table package_items {
 
 Table bookings {
   id uuid [pk]
+  reference varchar [not null, unique, note: 'DIP-XXXXXXXX, shown to guest and partner']
   customer_id uuid [not null, ref: > profiles.id]
   room_type_id uuid [not null, ref: > room_types.id]
+  rate_plan_id uuid [ref: > rate_plans.id, note: 'Plan booked; null if the room type has none (ON DELETE SET NULL)']
   promo_code_id uuid [ref: > promo_codes.id]
 
   check_in date [not null]
   check_out date [not null]
   adults_count int [default: 1]
   children_count int [default: 0]
+  special_requests text
 
   subtotal decimal(10,2) [not null]
   discount_amount decimal(10,2) [default: 0.00]

@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/src/lib/supabase/server";
-import { createAdminClient } from "@/src/lib/supabase/admin";
 import { failure, success, type ActionResult } from "@/src/lib/api/response";
+import { dbFailure } from "@/src/lib/api/db-errors";
+import { requirePartner } from "@/src/lib/auth/partner-guard";
 import { z } from "zod";
 
 const propertyDetailsSchema = z.object({
@@ -25,20 +25,22 @@ const propertyDetailsSchema = z.object({
 
 export type PropertyDetailsInput = z.infer<typeof propertyDetailsSchema>;
 
+const idSchema = z.string().uuid();
+const BUCKET = "property-images";
+
+function revalidatePropertyPages() {
+  revalidatePath("/dashboard/property");
+  revalidatePath("/dashboard");
+  revalidatePath("/search");
+}
+
 export async function savePropertyDetails(
-  partnerId: string,
   data: PropertyDetailsInput
 ): Promise<ActionResult<{ propertyId: string }>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return failure("auth.unauthorized", "You must be signed in.");
-    }
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase } = guard;
 
     const parsed = propertyDetailsSchema.safeParse(data);
     if (!parsed.success) {
@@ -49,38 +51,29 @@ export async function savePropertyDetails(
       );
     }
 
-    const admin = createAdminClient();
+    const { data: propertyId, error } = await supabase.rpc("save_property_details_rpc", {
+      p_name: parsed.data.name,
+      p_property_type: parsed.data.property_type,
+      p_area_id: parsed.data.area_id,
+      p_description_en: parsed.data.description_en,
+      p_description_fil: parsed.data.description_fil,
+      p_address: parsed.data.address,
+      p_latitude: parsed.data.latitude ?? null,
+      p_longitude: parsed.data.longitude ?? null,
+      p_check_in_time: parsed.data.check_in_time,
+      p_check_out_time: parsed.data.check_out_time,
+      p_early_checkin_fee: parsed.data.early_checkin_fee,
+      p_late_checkout_fee: parsed.data.late_checkout_fee,
+      p_downpayment_rate: parsed.data.downpayment_rate,
+      p_amenity_ids: parsed.data.amenity_ids,
+    });
 
-    const { data: propertyId, error: rpcError } = await admin.rpc(
-      "save_property_details_rpc",
-      {
-        p_partner_id: partnerId,
-        p_name: parsed.data.name,
-        p_property_type: parsed.data.property_type,
-        p_area_id: parsed.data.area_id,
-        p_description_en: parsed.data.description_en,
-        p_description_fil: parsed.data.description_fil,
-        p_address: parsed.data.address,
-        p_latitude: parsed.data.latitude || null,
-        p_longitude: parsed.data.longitude || null,
-        p_check_in_time: parsed.data.check_in_time,
-        p_check_out_time: parsed.data.check_out_time,
-        p_early_checkin_fee: parsed.data.early_checkin_fee,
-        p_late_checkout_fee: parsed.data.late_checkout_fee,
-        p_downpayment_rate: parsed.data.downpayment_rate,
-        p_amenity_ids: parsed.data.amenity_ids,
-      }
-    );
-
-    if (rpcError || !propertyId) {
-      console.error("Save property error:", rpcError);
-      return failure("db.save_failed", "Failed to save property: " + (rpcError?.message || ""));
+    if (error || !propertyId) {
+      console.error("savePropertyDetails failed:", error);
+      return dbFailure(error, "property.save_failed");
     }
 
-    revalidatePath("/dashboard/property");
-    revalidatePath("/dashboard");
-    revalidatePath("/search");
-
+    revalidatePropertyPages();
     return success({ propertyId });
   } catch (err) {
     console.error("Unexpected error in savePropertyDetails:", err);
@@ -89,73 +82,56 @@ export async function savePropertyDetails(
 }
 
 export async function uploadPropertyImage(
-  propertyId: string,
-  partnerId: string,
   formData: FormData
 ): Promise<ActionResult<{ id: string; imageUrl: string }>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
 
-    if (authError || !user) {
-      return failure("auth.unauthorized", "You must be signed in.");
+    if (!ctx.propertyId) {
+      return failure("property.missing", "Create your property profile first.");
     }
 
     const file = formData.get("image") as File | null;
     if (!file || !(file instanceof File) || file.size === 0) {
       return failure("validation.failed", "Please choose an image to upload.");
     }
-
     if (file.size > 10 * 1024 * 1024) {
       return failure("validation.file_too_large", "Image size must be 10MB or less.");
     }
-
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       return failure("validation.invalid_format", "Please upload a PNG, JPEG, or WEBP photo.");
     }
 
-    const admin = createAdminClient();
-
-    // Check existing images count for cover determination
-    const { data: existingImages } = await admin
+    const { count: existingCount } = await supabase
       .from("property_images")
-      .select("id, is_cover, display_order")
-      .eq("property_id", propertyId);
-
-    const isCover = !existingImages || existingImages.length === 0;
-    const nextOrder = (existingImages?.length || 0) + 1;
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", ctx.propertyId);
 
     const sanitizedFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-    const storagePath = `${partnerId}/${propertyId}/${Date.now()}_${sanitizedFilename}`;
+    const storagePath = `${ctx.partnerId}/${ctx.propertyId}/${Date.now()}_${sanitizedFilename}`;
 
-    const { error: uploadError } = await admin.storage
-      .from("property-images")
-      .upload(storagePath, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(storagePath, file, { contentType: file.type, upsert: false });
     if (uploadError) {
       console.error("Image upload error:", uploadError);
-      return failure("storage.upload_failed", "Failed to upload photo: " + uploadError.message);
+      return failure("storage.upload_failed", "Failed to upload photo. Please try again.");
     }
 
     const {
       data: { publicUrl },
-    } = admin.storage.from("property-images").getPublicUrl(storagePath);
+    } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
 
-    const { data: imageRecord, error: insertError } = await admin
+    const { data: imageRecord, error: insertError } = await supabase
       .from("property_images")
       .insert({
-        property_id: propertyId,
+        property_id: ctx.propertyId,
         storage_path: storagePath,
         image_url: publicUrl,
-        is_cover: isCover,
-        display_order: nextOrder,
+        is_cover: !existingCount,
+        display_order: (existingCount ?? 0) + 1,
         alt_text: file.name.split(".")[0],
       })
       .select("id, image_url")
@@ -163,80 +139,64 @@ export async function uploadPropertyImage(
 
     if (insertError || !imageRecord) {
       console.error("Image record insert error:", insertError);
-      return failure("db.insert_failed", "Failed to save photo record.");
+      const { error: cleanupError } = await supabase.storage.from(BUCKET).remove([storagePath]);
+      if (cleanupError) console.error("Orphaned upload cleanup failed:", cleanupError);
+      return dbFailure(insertError, "image.save_failed");
     }
 
-    revalidatePath("/dashboard/property");
-    revalidatePath("/dashboard");
-    revalidatePath("/search");
-
-    return success({
-      id: imageRecord.id,
-      imageUrl: imageRecord.image_url,
-    });
+    revalidatePropertyPages();
+    return success({ id: imageRecord.id, imageUrl: imageRecord.image_url });
   } catch (err) {
     console.error("Unexpected error in uploadPropertyImage:", err);
     return failure("unexpected.error", "An error occurred while uploading the photo.");
   }
 }
 
-export async function deletePropertyImage(
-  imageId: string,
-  propertyId: string
-): Promise<ActionResult<void>> {
+export async function deletePropertyImage(imageId: string): Promise<ActionResult<void>> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
 
-    if (authError || !user) {
-      return failure("auth.unauthorized", "You must be signed in.");
+    if (!idSchema.safeParse(imageId).success || !ctx.propertyId) {
+      return failure("validation.failed", "Invalid request.");
     }
 
-    const admin = createAdminClient();
-
-    const { data: targetImage, error: fetchError } = await admin
+    const { data: targetImage } = await supabase
       .from("property_images")
       .select("id, is_cover, storage_path")
       .eq("id", imageId)
-      .eq("property_id", propertyId)
-      .single();
-
-    if (fetchError || !targetImage) {
+      .eq("property_id", ctx.propertyId)
+      .maybeSingle();
+    if (!targetImage) {
       return failure("image.not_found", "Photo not found.");
     }
 
-    // Delete record from DB
-    await admin.from("property_images").delete().eq("id", imageId);
+    const { error: deleteError } = await supabase.from("property_images").delete().eq("id", imageId);
+    if (deleteError) {
+      console.error("Image delete error:", deleteError);
+      return dbFailure(deleteError, "image.delete_failed");
+    }
 
-    // If it was cover, set the first available image as new cover
     if (targetImage.is_cover) {
-      const { data: remainingImages } = await admin
+      const { data: next } = await supabase
         .from("property_images")
         .select("id")
-        .eq("property_id", propertyId)
+        .eq("property_id", ctx.propertyId)
         .order("display_order", { ascending: true })
-        .limit(1);
-
-      if (remainingImages && remainingImages.length > 0) {
-        await admin
-          .from("property_images")
-          .update({ is_cover: true })
-          .eq("id", remainingImages[0].id);
+        .limit(1)
+        .maybeSingle();
+      if (next) {
+        await supabase.from("property_images").update({ is_cover: true }).eq("id", next.id);
       }
     }
 
-    // Delete from storage (fire and forget)
     if (targetImage.storage_path) {
-      await admin.storage.from("property-images").remove([targetImage.storage_path]);
+      const { error: storageError } = await supabase.storage.from(BUCKET).remove([targetImage.storage_path]);
+      if (storageError) console.error("Image file removal failed:", storageError);
     }
 
-    revalidatePath("/dashboard/property");
-    revalidatePath("/dashboard");
-    revalidatePath("/search");
-
+    revalidatePropertyPages();
     return success(undefined);
   } catch (err) {
     console.error("Unexpected error in deletePropertyImage:", err);
@@ -244,34 +204,42 @@ export async function deletePropertyImage(
   }
 }
 
-export async function setCoverPropertyImage(
-  imageId: string,
-  propertyId: string
-): Promise<ActionResult<void>> {
+export async function setCoverPropertyImage(imageId: string): Promise<ActionResult<void>> {
   try {
-    const admin = createAdminClient();
+    const guard = await requirePartner({ manage: true });
+    if (!guard.ok) return guard.error;
+    const { supabase, ctx } = guard;
 
-    // Reset all covers for this property
-    await admin
-      .from("property_images")
-      .update({ is_cover: false })
-      .eq("property_id", propertyId);
-
-    // Set new cover
-    const { error } = await admin
-      .from("property_images")
-      .update({ is_cover: true })
-      .eq("id", imageId)
-      .eq("property_id", propertyId);
-
-    if (error) {
-      return failure("db.update_failed", "Failed to set cover photo.");
+    if (!idSchema.safeParse(imageId).success || !ctx.propertyId) {
+      return failure("validation.failed", "Invalid request.");
     }
 
-    revalidatePath("/dashboard/property");
-    revalidatePath("/dashboard");
-    revalidatePath("/search");
+    const { data: image } = await supabase
+      .from("property_images")
+      .select("id")
+      .eq("id", imageId)
+      .eq("property_id", ctx.propertyId)
+      .maybeSingle();
+    if (!image) {
+      return failure("image.not_found", "Photo not found.");
+    }
 
+    const { error: clearError } = await supabase
+      .from("property_images")
+      .update({ is_cover: false })
+      .eq("property_id", ctx.propertyId)
+      .neq("id", imageId);
+    const { error: setError } = await supabase
+      .from("property_images")
+      .update({ is_cover: true })
+      .eq("id", imageId);
+
+    if (clearError || setError) {
+      console.error("Set cover error:", clearError ?? setError);
+      return dbFailure(clearError ?? setError, "image.update_failed");
+    }
+
+    revalidatePropertyPages();
     return success(undefined);
   } catch (err) {
     console.error("Unexpected error in setCoverPropertyImage:", err);

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/src/lib/supabase/client";
 import { StatusBadge } from "@/src/components/partner/dashboard/StatusBadge";
+import { mapDbError } from "@/src/lib/api/db-errors";
 import type { BookingStatus, PartnerBookingDetail } from "@/src/types/database.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,20 +54,6 @@ function nightsBetween(checkIn: string, checkOut: string) {
   const start = new Date(checkIn).getTime();
   const end = new Date(checkOut).getTime();
   return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-}
-
-const RPC_ERROR_MESSAGES: Record<string, string> = {
-  BOOKING_NOT_FOUND: "Booking not found.",
-  INVALID_STATUS_TRANSITION: "This action is not allowed for the booking's current status.",
-  INVALID_ROOM: "One or more selected rooms do not belong to this booking's room type.",
-  INVALID_ROOM_COUNT: "Select at least one room.",
-  ROOM_ALREADY_ASSIGNED: "One or more selected rooms are already assigned.",
-  ROOMS_NOT_ASSIGNED: "Assign at least one room before checking in.",
-};
-
-function rpcErrorMessage(msg: string | undefined) {
-  if (!msg) return "Something went wrong. Please try again.";
-  return RPC_ERROR_MESSAGES[msg] ?? msg;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -113,10 +100,11 @@ export function BookingDetailContent({ detail, allowCancel }: BookingDetailConte
     nights: nightsBetween(booking.check_in, booking.check_out),
   };
 
-  const canAssignRooms = ["confirmed", "checked_in"].includes(booking.status);
-  const canCheckIn = booking.status === "confirmed";
-  const canCheckOut = booking.status === "checked_in";
-  const canCancel = allowCancel && ["pending_payment", "confirmed", "checked_in"].includes(booking.status);
+  const status = booking.effective_status;
+  const canAssignRooms = ["confirmed", "checked_in"].includes(status);
+  const canCheckIn = status === "confirmed";
+  const canCheckOut = status === "checked_in";
+  const canCancel = allowCancel && ["pending_payment", "confirmed", "checked_in"].includes(status);
 
   const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>(
     detail.assigned_rooms.map((r) => r.id)
@@ -137,7 +125,7 @@ export function BookingDetailContent({ detail, allowCancel }: BookingDetailConte
       const supabase = createClient();
       const { error } = await supabase.rpc(rpcName, { p_booking_id: booking.id, ...args });
       if (error) {
-        toast.error(friendlyLabel + " failed", { description: rpcErrorMessage(error.message) });
+        toast.error(friendlyLabel + " failed", { description: mapDbError(error, "booking.action_failed").message });
         return;
       }
       toast.success(friendlyLabel + " successful");
@@ -188,14 +176,14 @@ export function BookingDetailContent({ detail, allowCancel }: BookingDetailConte
         <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
           <div>
             <h1 className="text-2xl font-bold text-[#1F2A2E]" style={{ fontFamily: "var(--font-display)" }}>
-              BK-{booking.id.slice(0, 8).toUpperCase()}
+              {booking.reference}
             </h1>
             <p className="text-sm text-[#64716F] mt-1">
               Booked {formatDateTime(booking.created_at)}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <StatusBadge status={booking.status as BookingStatus} />
+            <StatusBadge status={status as BookingStatus} />
             <span className="text-xs font-semibold text-[#64716F]">
               Payment: {booking.payment_status}
             </span>

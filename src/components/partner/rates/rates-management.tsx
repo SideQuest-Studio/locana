@@ -55,7 +55,7 @@ export interface PricingRuleItem {
   start_date: string | null;
   end_date: string | null;
   days_of_week: number[];
-  price_modifier: number;
+  price_modifier: number | null;
   minimum_stay: number | null;
   priority: number;
   is_active: boolean;
@@ -115,7 +115,7 @@ export function RatesManagement({
     end_date: null,
     days_of_week: [5, 6], // Fri, Sat
     price_modifier: 500,
-    minimum_stay: 1,
+    minimum_stay: null,
     priority: 1,
     is_active: true,
   });
@@ -248,7 +248,7 @@ export function RatesManagement({
       end_date: null,
       days_of_week: [5, 6],
       price_modifier: 500,
-      minimum_stay: 1,
+      minimum_stay: null,
       priority: 1,
       is_active: true,
     });
@@ -281,7 +281,7 @@ export function RatesManagement({
 
     startTransition(async () => {
       if (editingRule) {
-        const res = await updatePricingRule(editingRule.id, propertyId, ruleForm);
+        const res = await updatePricingRule(editingRule.id, ruleForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {
@@ -302,7 +302,7 @@ export function RatesManagement({
           setIsRuleModalOpen(false);
         }
       } else {
-        const res = await createPricingRule(propertyId, ruleForm);
+        const res = await createPricingRule(ruleForm);
         if (!res.success) {
           setErrorMessage(res.error.message);
         } else {
@@ -601,9 +601,11 @@ export function RatesManagement({
                 const targetRoomType = rule.room_type_id
                   ? roomTypeMap.get(rule.room_type_id)?.name_en
                   : "All Room Types";
-                const mod = Number(rule.price_modifier);
+                const mod = rule.price_modifier === null ? null : Number(rule.price_modifier);
                 const modText =
-                  mod > 0
+                  mod === null
+                    ? "No price change"
+                    : mod >= 0
                     ? `+₱${mod.toLocaleString()} surcharge`
                     : `-₱${Math.abs(mod).toLocaleString()} discount`;
 
@@ -1044,17 +1046,16 @@ export function RatesManagement({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#1F2A2E] mb-1">
-                    Price Modifier (₱) *
+                    Price Modifier (₱)
                   </label>
                   <input
                     type="number"
-                    required
-                    placeholder="e.g. 800"
-                    value={ruleForm.price_modifier}
+                    placeholder="e.g. 800 (blank = no change)"
+                    value={ruleForm.price_modifier ?? ""}
                     onChange={(e) =>
                       setRuleForm({
                         ...ruleForm,
-                        price_modifier: Number(e.target.value),
+                        price_modifier: e.target.value === "" ? null : Number(e.target.value),
                       })
                     }
                     className="w-full rounded-xl border border-[#F0DFC2] px-3 py-2 text-xs focus:outline-none focus:border-[#1E88E5]"
